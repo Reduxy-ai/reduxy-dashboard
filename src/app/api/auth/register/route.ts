@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeDatabase, createUserInDB, findUserByEmailInDB } from '@/lib/database-server'
+import { createUserInDB, findUserByEmailInDB } from '@/lib/database-server'
 import { createJWT } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
@@ -20,8 +20,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Initialize database tables if they don't exist
-        await initializeDatabase()
+        // Database tables should already exist via migrations
 
         // Check if user already exists
         const existingUser = await findUserByEmailInDB(email)

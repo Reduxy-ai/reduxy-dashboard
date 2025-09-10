@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeDatabase, findUserByEmailInDB } from '@/lib/database-server'
+import { findUserByEmailInDB } from '@/lib/database-server'
 import { createJWT, verifyPassword } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
@@ -13,8 +13,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Initialize database tables if they don't exist
-        await initializeDatabase()
+        // Database tables should already exist via migrations
 
         // Find user in database
         const user = await findUserByEmailInDB(email)

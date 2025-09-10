@@ -70,7 +70,7 @@ export default function ProfilePage() {
 
     // Helper function to get auth token
     const getAuthToken = () => {
-        return localStorage.getItem('authToken')
+        return localStorage.getItem('reduxy_auth_token')
     }
 
     // Helper function to make authenticated API calls
@@ -79,6 +79,8 @@ export default function ProfilePage() {
         if (!token) {
             throw new Error('No authentication token found')
         }
+
+        console.log('Making authenticated request to:', url, 'with token:', token ? 'present' : 'missing')
 
         return fetch(url, {
             ...options,
@@ -115,7 +117,8 @@ export default function ProfilePage() {
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to update profile')
+                console.error('Profile update failed:', response.status, data)
+                throw new Error(data.error || `Failed to update profile (${response.status})`)
             }
 
             setSuccess({ profile: data.message || 'Profile updated successfully!' })

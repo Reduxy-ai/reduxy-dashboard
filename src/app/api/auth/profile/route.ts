@@ -57,7 +57,9 @@ export async function PUT(request: NextRequest) {
         }
 
         const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+        console.log('Profile update - verifying JWT token:', token ? 'present' : 'missing')
         const payload = await verifyJWT(token)
+        console.log('Profile update - JWT payload:', payload)
         if (!payload) {
             return NextResponse.json(
                 { error: 'Invalid or expired token' },
@@ -109,7 +111,7 @@ export async function PUT(request: NextRequest) {
     } catch (error) {
         console.error('Profile update error:', error)
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
             { status: 500 }
         )
     }
