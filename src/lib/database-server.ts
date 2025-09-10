@@ -31,74 +31,13 @@ export async function query(text: string, params?: any[]): Promise<any> {
     }
 }
 
-// Initialize database tables
+// Initialize database using migration system
 export async function initializeDatabase(): Promise<void> {
     try {
-        // Create users table
-        await query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        first_name VARCHAR(100) NOT NULL,
-        last_name VARCHAR(100) NOT NULL,
-        company VARCHAR(255),
-        plan VARCHAR(50) NOT NULL DEFAULT 'starter',
-        is_email_verified BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `)
-
-        // Create API keys table
-        await query(`
-      CREATE TABLE IF NOT EXISTS api_keys (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        name VARCHAR(255) NOT NULL,
-        key_hash VARCHAR(255) NOT NULL,
-        key_prefix VARCHAR(20) NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
-        last_used TIMESTAMP WITH TIME ZONE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `)
-
-        // Create user preferences table
-        await query(`
-      CREATE TABLE IF NOT EXISTS user_preferences (
-        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        theme VARCHAR(20) DEFAULT 'system',
-        email_notifications BOOLEAN DEFAULT TRUE,
-        security_alerts BOOLEAN DEFAULT TRUE,
-        weekly_reports BOOLEAN DEFAULT FALSE,
-        language VARCHAR(10) DEFAULT 'en'
-      )
-    `)
-
-        // Create billing info table
-        await query(`
-      CREATE TABLE IF NOT EXISTS billing_info (
-        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        plan VARCHAR(50) NOT NULL,
-        status VARCHAR(50) DEFAULT 'active',
-        current_period_start TIMESTAMP WITH TIME ZONE,
-        current_period_end TIMESTAMP WITH TIME ZONE,
-        cancel_at_period_end BOOLEAN DEFAULT FALSE,
-        trial_end TIMESTAMP WITH TIME ZONE,
-        stripe_customer_id VARCHAR(255),
-        stripe_subscription_id VARCHAR(255)
-      )
-    `)
-
-        // Create indexes
-        await query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
-      CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
-    `)
-
-        console.log('Database tables initialized successfully')
+        // Import migrations and run them
+        const { runMigrations } = await import('./migrations')
+        await runMigrations()
+        console.log('Database initialized successfully using migrations')
     } catch (error) {
         console.error('Error initializing database:', error)
         throw error

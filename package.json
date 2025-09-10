@@ -6,7 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "migrate:up": "tsx src/scripts/migrate.ts up",
+    "migrate:down": "tsx src/scripts/migrate.ts down",
+    "migrate:status": "tsx src/scripts/migrate.ts status",
+    "migrate:generate": "tsx src/scripts/migrate.ts generate"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.0.4",
@@ -41,9 +46,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/validator": "^13.11.8",
+    "dotenv": "^17.2.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4",
+    "tsx": "^4.20.5",
     "typescript": "^5"
   }
 }
