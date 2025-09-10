@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { resetPasswordSchema, type ResetPasswordFormData } from "@/lib/validations"
 import { ArrowLeft, Mail, Loader2, Zap, Shield, Clock, CheckCircle } from "lucide-react"
+import { AuthThemeToggle } from "@/components/auth/theme-toggle"
 
 export default function ForgotPasswordPage() {
     const [formData, setFormData] = useState<ResetPasswordFormData>({
@@ -57,6 +58,10 @@ export default function ForgotPasswordPage() {
             {/* Left Side - Branding & Features */}
             <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/20"></div>
+                {/* Theme Toggle */}
+                <div className="absolute top-6 right-6 z-20">
+                    <AuthThemeToggle />
+                </div>
                 <div className="relative z-10 flex flex-col justify-center items-start p-12 text-white">
                     <div className="mb-8">
                         <div className="flex items-center mb-4">
@@ -104,7 +109,11 @@ export default function ForgotPasswordPage() {
             </div>
 
             {/* Right Side - Reset Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background relative">
+                {/* Theme Toggle for mobile */}
+                <div className="absolute top-6 right-6 lg:hidden">
+                    <AuthThemeToggle variant="mobile" />
+                </div>
                 <div className="mx-auto w-full max-w-md">
                     <div className="mb-8 text-center lg:text-left">
                         <div className="lg:hidden flex items-center justify-center mb-6">

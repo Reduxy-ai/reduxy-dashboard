@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
 import { loginSchema, type LoginFormData } from "@/lib/validations"
 import { Loader2, Zap, Shield, BarChart3, Users } from "lucide-react"
+import { AuthThemeToggle } from "@/components/auth/theme-toggle"
 
 export default function LoginPage() {
     const [formData, setFormData] = useState<LoginFormData>({
@@ -64,6 +65,10 @@ export default function LoginPage() {
             {/* Left Side - Branding & Features */}
             <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/20"></div>
+                {/* Theme Toggle */}
+                <div className="absolute top-6 right-6 z-20">
+                    <AuthThemeToggle />
+                </div>
                 <div className="relative z-10 flex flex-col justify-center items-start p-12 text-white">
                     <div className="mb-8">
                         <div className="flex items-center mb-4">
@@ -111,7 +116,11 @@ export default function LoginPage() {
             </div>
 
             {/* Right Side - Login Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background relative">
+                {/* Theme Toggle for mobile */}
+                <div className="absolute top-6 right-6 lg:hidden">
+                    <AuthThemeToggle variant="mobile" />
+                </div>
                 <div className="mx-auto w-full max-w-md">
                     <div className="mb-8 text-center lg:text-left">
                         <div className="lg:hidden flex items-center justify-center mb-6">
