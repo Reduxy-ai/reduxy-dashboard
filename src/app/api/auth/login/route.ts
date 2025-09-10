@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { initializeDatabase, findUserByEmailInDB } from '@/lib/database-server'
+import { createJWT, verifyPassword } from '@/lib/auth'
 
-// Mock login for now - will implement database later
 export async function POST(request: NextRequest) {
     try {
         const { email, password } = await request.json()
@@ -12,47 +13,41 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Mock authentication - replace with database call
-        if (email === 'admin@reduxy.ai' && password === 'admin123') {
-            const user = {
-                id: 'user_1',
-                email: 'admin@reduxy.ai',
-                firstName: 'Admin',
-                lastName: 'User',
-                plan: 'pro',
-                isEmailVerified: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                company: 'Reduxy Inc.',
-                apiKeys: [],
-                preferences: {
-                    theme: 'system',
-                    emailNotifications: true,
-                    securityAlerts: true,
-                    weeklyReports: true,
-                    language: 'en'
-                },
-                billingInfo: {
-                    plan: 'pro',
-                    status: 'active',
-                    currentPeriodStart: new Date().toISOString(),
-                    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    cancelAtPeriodEnd: false
-                }
-            }
+        // Initialize database tables if they don't exist
+        await initializeDatabase()
 
-            const token = 'mock-jwt-token'
-
-            return NextResponse.json({
-                user,
-                token
-            })
+        // Find user in database
+        const user = await findUserByEmailInDB(email)
+        if (!user) {
+            return NextResponse.json(
+                { error: 'Invalid email or password' },
+                { status: 401 }
+            )
         }
 
-        return NextResponse.json(
-            { error: 'Invalid email or password' },
-            { status: 401 }
-        )
+        // Verify password
+        const isPasswordValid = await verifyPassword(password, user.password)
+        if (!isPasswordValid) {
+            return NextResponse.json(
+                { error: 'Invalid email or password' },
+                { status: 401 }
+            )
+        }
+
+        // Remove password from user object
+        const { password: _, ...userWithoutPassword } = user
+
+        // Create JWT token
+        const token = await createJWT({
+            userId: user.id,
+            email: user.email,
+            plan: user.plan
+        })
+
+        return NextResponse.json({
+            user: userWithoutPassword,
+            token
+        })
     } catch (error) {
         console.error('Authentication error:', error)
         return NextResponse.json(

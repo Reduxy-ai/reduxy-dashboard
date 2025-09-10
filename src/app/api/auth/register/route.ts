@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { initializeDatabase, createUserInDB, findUserByEmailInDB } from '@/lib/database-server'
+import { createJWT } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, password, firstName, lastName, company, plan } = await request.json()
+        const { email, password, firstName, lastName, company, plan, agreeToTerms } = await request.json()
 
         if (!email || !password || !firstName || !lastName || !plan) {
             return NextResponse.json(
@@ -11,28 +13,41 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Mock registration - replace with database call
-        const user = {
-            id: `user_${Date.now()}`,
-            email,
-            firstName,
-            lastName,
-            plan,
-            isEmailVerified: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            company: company || null,
-            apiKeys: [],
-            preferences: {
-                theme: 'system',
-                emailNotifications: true,
-                securityAlerts: true,
-                weeklyReports: false,
-                language: 'en'
-            }
+        if (!agreeToTerms) {
+            return NextResponse.json(
+                { error: 'You must agree to the terms and conditions' },
+                { status: 400 }
+            )
         }
 
-        const token = `mock-jwt-token-${Date.now()}`
+        // Initialize database tables if they don't exist
+        await initializeDatabase()
+
+        // Check if user already exists
+        const existingUser = await findUserByEmailInDB(email)
+        if (existingUser) {
+            return NextResponse.json(
+                { error: 'Email already registered' },
+                { status: 409 }
+            )
+        }
+
+        // Create new user in database
+        const user = await createUserInDB({
+            email,
+            password,
+            firstName,
+            lastName,
+            company,
+            plan
+        })
+
+        // Create JWT token
+        const token = await createJWT({
+            userId: user.id,
+            email: user.email,
+            plan: user.plan
+        })
 
         return NextResponse.json({
             user,
