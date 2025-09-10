@@ -21,7 +21,7 @@ function getPool(): Pool {
     return pool
 }
 
-async function query(text: string, params?: any[]): Promise<any> {
+export async function query(text: string, params?: any[]): Promise<any> {
     const client = await getPool().connect()
     try {
         const result = await client.query(text, params)

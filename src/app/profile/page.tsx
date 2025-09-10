@@ -68,6 +68,28 @@ export default function ProfilePage() {
         setSuccess({})
     }
 
+    // Helper function to get auth token
+    const getAuthToken = () => {
+        return localStorage.getItem('authToken')
+    }
+
+    // Helper function to make authenticated API calls
+    const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}) => {
+        const token = getAuthToken()
+        if (!token) {
+            throw new Error('No authentication token found')
+        }
+
+        return fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                ...options.headers,
+            },
+        })
+    }
+
     const handleProfileUpdate = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(prev => ({ ...prev, profile: true }))
@@ -84,11 +106,24 @@ export default function ProfilePage() {
                 return
             }
 
-            // Mock success for now - replace with API call
-            setTimeout(() => {
-                setSuccess({ profile: 'Profile updated successfully!' })
-                setLoading(prev => ({ ...prev, profile: false }))
-            }, 1000)
+            // Update profile via API
+            const response = await makeAuthenticatedRequest('/api/auth/profile', {
+                method: 'PUT',
+                body: JSON.stringify(profileData)
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update profile')
+            }
+
+            setSuccess({ profile: data.message || 'Profile updated successfully!' })
+
+            // Refresh user data to reflect changes
+            await refreshUser()
+
+            setLoading(prev => ({ ...prev, profile: false }))
         } catch (error) {
             setErrors({ profile: 'Failed to update profile' })
             setLoading(prev => ({ ...prev, profile: false }))
@@ -111,12 +146,21 @@ export default function ProfilePage() {
                 return
             }
 
-            // Mock success for now - replace with API call
-            setTimeout(() => {
-                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
-                setSuccess({ password: 'Password updated successfully!' })
-                setLoading(prev => ({ ...prev, password: false }))
-            }, 1000)
+            // Update password via API
+            const response = await makeAuthenticatedRequest('/api/auth/password', {
+                method: 'PUT',
+                body: JSON.stringify(passwordData)
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update password')
+            }
+
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+            setSuccess({ password: data.message || 'Password updated successfully!' })
+            setLoading(prev => ({ ...prev, password: false }))
         } catch (error) {
             setErrors({ password: 'Failed to update password' })
             setLoading(prev => ({ ...prev, password: false }))
@@ -135,12 +179,27 @@ export default function ProfilePage() {
                 return
             }
 
-            // Mock success for now - replace with API call
-            setTimeout(() => {
-                setApiKeyName('')
-                setSuccess({ apiKey: 'API key created successfully!' })
-                setLoading(prev => ({ ...prev, apiKey: false }))
-            }, 1000)
+            // Create API key via API
+            const response = await makeAuthenticatedRequest('/api/auth/api-keys', {
+                method: 'POST',
+                body: JSON.stringify({ name: apiKeyName })
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create API key')
+            }
+
+            setApiKeyName('')
+            setSuccess({
+                apiKey: `API key created successfully! Save this key: ${data.apiKey}`
+            })
+
+            // Refresh user data to show the new API key
+            await refreshUser()
+
+            setLoading(prev => ({ ...prev, apiKey: false }))
         } catch (error) {
             setErrors({ apiKey: 'Failed to create API key' })
             setLoading(prev => ({ ...prev, apiKey: false }))
@@ -155,11 +214,24 @@ export default function ProfilePage() {
         setLoading(prev => ({ ...prev, [`delete_${keyId}`]: true }))
 
         try {
-            // Mock success for now - replace with API call
-            setTimeout(() => {
-                setSuccess({ apiKey: 'API key deleted successfully!' })
-                setLoading(prev => ({ ...prev, [`delete_${keyId}`]: false }))
-            }, 1000)
+            // Delete API key via API
+            const response = await makeAuthenticatedRequest('/api/auth/api-keys', {
+                method: 'DELETE',
+                body: JSON.stringify({ keyId })
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to delete API key')
+            }
+
+            setSuccess({ apiKey: data.message || 'API key deleted successfully!' })
+
+            // Refresh user data to remove the deleted API key
+            await refreshUser()
+
+            setLoading(prev => ({ ...prev, [`delete_${keyId}`]: false }))
         } catch (error) {
             setErrors({ apiKey: 'Failed to delete API key' })
             setLoading(prev => ({ ...prev, [`delete_${keyId}`]: false }))

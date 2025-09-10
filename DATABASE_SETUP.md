@@ -33,7 +33,7 @@ cp .env.template .env.local
 # =================================
 # AUTHENTICATION CONFIGURATION
 # =================================
-JWT_SECRET="c78"
+JWT_SECRET="test_JWT"
 
 # =================================
 # API CONFIGURATION
@@ -44,8 +44,8 @@ NEXT_PUBLIC_API_URL="http://loc8000"  # For development
 # =================================
 # DATABASE CONFIGURATION
 # =================================
-DATABASE_URL="postgresql://postgres.ekpsfwzvongveuumyvwr-1-ca-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.ekpsfwzvongveuumyvwr:1-ca-central-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL="test"
+DIRECT_URL="test"
 ```
 
 ### **3. Database Initialization**
