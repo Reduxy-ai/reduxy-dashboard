@@ -176,7 +176,7 @@ export default function RegisterPage() {
                                                 key={plan}
                                                 className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all ${isSelected
                                                     ? 'border-purple-500 bg-purple-500/5 shadow-sm'
-                                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                                                    : 'border-gray-200 hover:border-gray-100 hover:bg-purple-700/30'
                                                     }`}
                                                 onClick={() => handlePlanSelection(plan)}
                                             >
