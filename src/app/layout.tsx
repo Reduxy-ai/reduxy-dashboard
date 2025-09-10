@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { Sidebar } from "@/components/sidebar";
+import { ConditionalLayout } from "@/components/conditional-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,12 +38,9 @@ export default function RootLayout({
         >
           <AuthProvider>
             <RouteGuard>
-              <div className="flex h-screen bg-background">
-                <Sidebar />
-                <main className="flex-1 overflow-y-auto">
-                  {children}
-                </main>
-              </div>
+              <ConditionalLayout>
+                {children}
+              </ConditionalLayout>
             </RouteGuard>
           </AuthProvider>
         </ThemeProvider>

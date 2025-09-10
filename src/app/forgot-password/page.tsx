@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { resetPasswordSchema, type ResetPasswordFormData } from "@/lib/validations"
-import { ArrowLeft, Mail, Loader2 } from "lucide-react"
+import { ArrowLeft, Mail, Loader2, Zap, Shield, Clock, CheckCircle } from "lucide-react"
 
 export default function ForgotPasswordPage() {
     const [formData, setFormData] = useState<ResetPasswordFormData>({
@@ -41,113 +41,173 @@ export default function ForgotPasswordPage() {
                 return
             }
 
-            // Simulate API call
+            // Mock API call - replace with actual implementation
             await new Promise(resolve => setTimeout(resolve, 2000))
+
             setSent(true)
         } catch (error) {
-            setErrors({ general: 'An unexpected error occurred' })
+            setErrors({ general: 'Failed to send reset email. Please try again.' })
         } finally {
             setLoading(false)
         }
     }
 
-    if (sent) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                        <div className="mx-auto mb-4 w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                            <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
-                        </div>
-                        <CardTitle className="text-2xl">Check Your Email</CardTitle>
-                        <CardDescription>
-                            We've sent a password reset link to{' '}
-                            <span className="font-medium">{formData.email}</span>
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground text-center">
-                            Didn't receive the email? Check your spam folder or{' '}
-                            <button
-                                onClick={() => setSent(false)}
-                                className="text-primary hover:underline"
-                            >
-                                try again
-                            </button>
-                        </p>
-                        <Button asChild className="w-full">
-                            <Link href="/login">
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back to Login
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1">
-                    <div className="flex items-center justify-center mb-4">
-                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                            <span className="text-primary-foreground font-bold text-lg">R</span>
+        <div className="min-h-screen flex">
+            {/* Left Side - Branding & Features */}
+            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 relative overflow-hidden">
+                <div className="absolute inset-0 bg-black/20"></div>
+                <div className="relative z-10 flex flex-col justify-center items-start p-12 text-white">
+                    <div className="mb-8">
+                        <div className="flex items-center mb-4">
+                            <Zap className="h-8 w-8 mr-3" />
+                            <h1 className="text-3xl font-bold">Reduxy</h1>
                         </div>
+                        <p className="text-xl text-indigo-100">Secure account recovery</p>
                     </div>
-                    <CardTitle className="text-2xl text-center">Reset Password</CardTitle>
-                    <CardDescription className="text-center">
-                        Enter your email address and we'll send you a link to reset your password
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {errors.general && (
-                            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
-                                <p className="text-sm text-destructive">{errors.general}</p>
+
+                    <div className="space-y-6 max-w-md">
+                        <div className="flex items-start space-x-4">
+                            <Shield className="h-6 w-6 text-indigo-200 mt-1 flex-shrink-0" />
+                            <div>
+                                <h3 className="font-semibold mb-1">Secure Process</h3>
+                                <p className="text-indigo-100 text-sm">We use industry-standard security measures to protect your account recovery process.</p>
                             </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="Enter your email address"
-                                value={formData.email}
-                                onChange={(e) => handleInputChange('email', e.target.value)}
-                                className={errors.email ? 'border-destructive' : ''}
-                                required
-                            />
-                            {errors.email && (
-                                <p className="text-sm text-destructive">{errors.email}</p>
-                            )}
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={loading}>
-                            {loading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Sending...
-                                </>
-                            ) : (
-                                'Send Reset Link'
-                            )}
-                        </Button>
-                    </form>
+                        <div className="flex items-start space-x-4">
+                            <Clock className="h-6 w-6 text-indigo-200 mt-1 flex-shrink-0" />
+                            <div>
+                                <h3 className="font-semibold mb-1">Quick Recovery</h3>
+                                <p className="text-indigo-100 text-sm">Reset links are sent instantly and expire after 24 hours for your security.</p>
+                            </div>
+                        </div>
 
-                    <div className="mt-6 text-center">
-                        <Link
-                            href="/login"
-                            className="text-sm text-muted-foreground hover:text-primary inline-flex items-center"
-                        >
-                            <ArrowLeft className="w-4 h-4 mr-1" />
-                            Back to Login
-                        </Link>
+                        <div className="flex items-start space-x-4">
+                            <CheckCircle className="h-6 w-6 text-indigo-200 mt-1 flex-shrink-0" />
+                            <div>
+                                <h3 className="font-semibold mb-1">Always Available</h3>
+                                <p className="text-indigo-100 text-sm">Our support team is here to help if you need additional assistance.</p>
+                            </div>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+
+                    <div className="mt-12 text-indigo-200">
+                        <p className="text-sm">"Security and reliability you can trust."</p>
+                        <p className="text-xs mt-2 opacity-75">— Reduxy Security Team</p>
+                    </div>
+                </div>
+
+                {/* Decorative elements */}
+                <div className="absolute top-20 right-20 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+                <div className="absolute bottom-20 left-20 w-24 h-24 bg-blue-400/20 rounded-full blur-lg"></div>
+            </div>
+
+            {/* Right Side - Reset Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
+                <div className="mx-auto w-full max-w-md">
+                    <div className="mb-8 text-center lg:text-left">
+                        <div className="lg:hidden flex items-center justify-center mb-6">
+                            <Zap className="h-8 w-8 mr-3 text-indigo-600" />
+                            <h1 className="text-3xl font-bold">Reduxy</h1>
+                        </div>
+
+                        {sent ? (
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Mail className="h-8 w-8 text-green-600" />
+                                </div>
+                                <h2 className="text-3xl font-bold tracking-tight text-green-600">Check your email</h2>
+                                <p className="text-muted-foreground mt-2">
+                                    We've sent a password reset link to {formData.email}
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="text-3xl font-bold tracking-tight">Reset your password</h2>
+                                <p className="text-muted-foreground mt-2">
+                                    Enter your email address and we'll send you a link to reset your password
+                                </p>
+                            </>
+                        )}
+                    </div>
+
+                    <Card className="border-0 shadow-none lg:border lg:shadow-sm">
+                        <CardContent className="p-0 lg:p-6">
+                            {sent ? (
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                                        <div className="flex items-start space-x-3">
+                                            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                                            <div className="text-sm">
+                                                <p className="font-medium text-green-800">Reset link sent!</p>
+                                                <p className="text-green-700 mt-1">
+                                                    Check your inbox and click the link to reset your password.
+                                                    The link will expire in 24 hours.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-center text-sm text-muted-foreground">
+                                        <p>Didn't receive the email? Check your spam folder or</p>
+                                        <Button
+                                            variant="link"
+                                            className="p-0 h-auto text-indigo-600 hover:text-indigo-500"
+                                            onClick={() => setSent(false)}
+                                        >
+                                            try again
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    {errors.general && (
+                                        <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                                            {errors.general}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email address</Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            placeholder="Enter your email address"
+                                            value={formData.email}
+                                            onChange={(e) => handleInputChange('email', e.target.value)}
+                                            className="h-11"
+                                            required
+                                        />
+                                        {errors.email && (
+                                            <span className="text-sm text-red-600">{errors.email}</span>
+                                        )}
+                                    </div>
+
+                                    <Button
+                                        type="submit"
+                                        className="w-full h-11 bg-indigo-600 hover:bg-indigo-700"
+                                        disabled={loading}
+                                    >
+                                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Send reset link
+                                    </Button>
+                                </form>
+                            )}
+
+                            <div className="mt-6 text-center">
+                                <Link
+                                    href="/login"
+                                    className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-500 font-medium hover:underline"
+                                >
+                                    <ArrowLeft className="h-4 w-4 mr-1" />
+                                    Back to login
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     )
 } 
