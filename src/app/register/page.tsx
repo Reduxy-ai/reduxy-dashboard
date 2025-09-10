@@ -175,8 +175,8 @@ export default function RegisterPage() {
                                             <div
                                                 key={plan}
                                                 className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all ${isSelected
-                                                        ? 'border-purple-500 bg-purple-50'
-                                                        : 'border-gray-200 hover:border-gray-300'
+                                                    ? 'border-purple-500 bg-purple-500/5 shadow-sm'
+                                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
                                                     }`}
                                                 onClick={() => handlePlanSelection(plan)}
                                             >
