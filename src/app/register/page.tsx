@@ -217,7 +217,7 @@ export default function RegisterPage() {
                                                 </div>
 
                                                 {isSelected && (
-                                                    <div className="absolute top-4 right-4">
+                                                    <div className="absolute bottom-4 right-4">
                                                         <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
                                                             <Check className="h-4 w-4 text-white" />
                                                         </div>
