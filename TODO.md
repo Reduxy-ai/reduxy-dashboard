@@ -1,17 +1,17 @@
 # reduxy-dashboard TODOs
 
 ## MVP (Phase 1)
-- [ ] Bootstrap Next.js project with Tailwind + shadcn/ui
-- [ ] Add login page (mock auth)
-- [ ] Create logs page (fetch from logging API)
-- [ ] Add pagination to logs
-- [ ] Add usage chart (requests/day)
-- [ ] Implement responsive design
-- [ ] Add basic navigation and routing
-- [ ] Create API client for backend communication
-- [ ] Add loading states and error handling
-- [ ] Implement basic data visualization
-- [ ] Add dark/light theme toggle
+- [x] Bootstrap Next.js project with Tailwind + shadcn/ui
+- [x] Add login page (mock auth)
+- [x] Create logs page (fetch from logging API)
+- [x] Add pagination to logs
+- [x] Add usage chart (requests/day)
+- [x] Implement responsive design
+- [x] Add basic navigation and routing
+- [x] Create API client for backend communication
+- [x] Add loading states and error handling
+- [x] Implement basic data visualization
+- [x] Add dark/light theme toggle
 
 ## Phase 2
 - [ ] Add policy editor UI
