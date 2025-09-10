@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/auth-context";
+import { RouteGuard } from "@/components/auth/route-guard";
 import { Sidebar } from "@/components/sidebar";
 
 const geistSans = Geist({
@@ -33,12 +35,16 @@ export default function RootLayout({
           defaultTheme="system"
           storageKey="reduxy-ui-theme"
         >
-          <div className="flex h-screen bg-background">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
+          <AuthProvider>
+            <RouteGuard>
+              <div className="flex h-screen bg-background">
+                <Sidebar />
+                <main className="flex-1 overflow-y-auto">
+                  {children}
+                </main>
+              </div>
+            </RouteGuard>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -12,9 +12,11 @@ import {
     Activity,
     Moon,
     Sun,
-    LogIn
+    LogOut,
+    User
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
+import { useAuth } from "@/contexts/auth-context"
 
 const navigation = [
     {
@@ -38,20 +40,16 @@ const navigation = [
         icon: Activity,
     },
     {
-        name: "Settings",
-        href: "/settings",
-        icon: Settings,
-    },
-    {
-        name: "Login",
-        href: "/login",
-        icon: LogIn,
+        name: "Profile",
+        href: "/profile",
+        icon: User,
     },
 ]
 
 export function Sidebar() {
     const pathname = usePathname()
     const { theme, setTheme } = useTheme()
+    const { user, logout } = useAuth()
 
     return (
         <div className="flex h-full w-64 flex-col bg-card border-r">
@@ -89,8 +87,8 @@ export function Sidebar() {
                 })}
             </nav>
 
-            {/* Theme Toggle */}
-            <div className="border-t p-4">
+            {/* Theme Toggle and User Actions */}
+            <div className="border-t p-4 space-y-2">
                 <Button
                     variant="ghost"
                     size="sm"
@@ -104,6 +102,18 @@ export function Sidebar() {
                     )}
                     {theme === "dark" ? "Light mode" : "Dark mode"}
                 </Button>
+
+                {user && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={logout}
+                        className="w-full justify-start gap-3 text-destructive hover:text-destructive"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Sign out
+                    </Button>
+                )}
             </div>
         </div>
     )

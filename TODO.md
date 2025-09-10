@@ -13,6 +13,19 @@
 - [x] Implement basic data visualization
 - [x] Add dark/light theme toggle
 
+## Authentication & User Management (Phase 1 Extension)
+- [x] Implement real authentication system (JWT-based)
+- [x] Create registration page with membership plan selection
+- [ ] Add email verification flow
+- [x] Implement proper login/logout functionality
+- [x] Create password reset flow
+- [x] Add route protection middleware
+- [x] Create user profile management page
+- [x] Add account settings and preferences
+- [x] Implement plan upgrade/downgrade UI
+- [x] Add API key management for users
+- [x] Create user onboarding flow
+
 ## Phase 2
 - [ ] Add policy editor UI
 - [ ] Add compliance report export
@@ -23,6 +36,11 @@
 - [ ] Implement role-based access control
 - [ ] Add data export functionality
 - [ ] Create settings and configuration pages
+- [ ] Integrate Stripe payment processing
+- [ ] Add subscription management
+- [ ] Implement billing history and invoices
+- [ ] Add usage-based billing alerts
+- [ ] Create team invitation system
 
 ## Phase 3
 - [ ] Add alerting UI (policy violations)
