@@ -33,19 +33,19 @@ cp .env.template .env.local
 # =================================
 # AUTHENTICATION CONFIGURATION
 # =================================
-JWT_SECRET="c7830f989609575b182839f4de7346c4fa7674f61bce3d75a72685cf69728aa1bda80e606bd180f24d5b34a63174c1f632a138b5ac675e38196c9743a92fee5a"
+JWT_SECRET="c78"
 
 # =================================
 # API CONFIGURATION
 # =================================
-NEXT_PUBLIC_API_URL="http://localhost:8000"  # For development
+NEXT_PUBLIC_API_URL="http://loc8000"  # For development
 # NEXT_PUBLIC_API_URL="https://your-gateway-domain.com"  # For production
 
 # =================================
 # DATABASE CONFIGURATION
 # =================================
-DATABASE_URL="postgresql://postgres.ekpsfwzvongveuumyvwr:113232.Ma@aws-1-ca-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.ekpsfwzvongveuumyvwr:113232.Ma@aws-1-ca-central-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL="postgresql://postgres.ekpsfwzvongveuumyvwr-1-ca-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.ekpsfwzvongveuumyvwr:1-ca-central-1.pooler.supabase.com:5432/postgres"
 ```
 
 ### **3. Database Initialization**
