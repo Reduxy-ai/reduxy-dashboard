@@ -183,11 +183,6 @@ export default function LoginPage() {
                                 </Button>
                             </form>
 
-                            <div className="mt-6 p-3 bg-gray-50 rounded-md border">
-                                <p className="text-sm text-gray-600 text-center mb-1">Demo credentials:</p>
-                                <p className="text-sm font-mono text-center">admin@reduxy.ai / admin123</p>
-                            </div>
-
                             <div className="mt-6 text-center">
                                 <p className="text-sm text-muted-foreground">
                                     Don't have an account?{" "}
