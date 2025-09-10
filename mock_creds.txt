@@ -1,0 +1,2 @@
+Email: admin@reduxy.ai
+Password: admin123
