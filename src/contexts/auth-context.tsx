@@ -66,33 +66,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return
             }
 
-            // For now, just check if we have a valid token format
-            // In production, this would verify the JWT and fetch user data
-            if (token.startsWith('mock-jwt-token')) {
-                // Mock user data - replace with API call to verify token
-                const mockUser = {
-                    id: 'user_1',
-                    email: 'admin@reduxy.ai',
-                    firstName: 'Admin',
-                    lastName: 'User',
-                    plan: 'pro' as const,
-                    isEmailVerified: true,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    company: 'Reduxy Inc.',
-                    apiKeys: [],
-                    preferences: {
-                        theme: 'system' as const,
-                        emailNotifications: true,
-                        securityAlerts: true,
-                        weeklyReports: true,
-                        language: 'en'
-                    }
+            // Verify JWT token by calling the profile API
+            const response = await fetch('/api/auth/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
-                dispatch({ type: 'LOGIN_SUCCESS', payload: mockUser })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                dispatch({ type: 'LOGIN_SUCCESS', payload: data.user })
             } else {
+                // Token is invalid or expired
                 removeStoredToken()
-                dispatch({ type: 'LOGIN_FAILURE', payload: 'Invalid token' })
+                dispatch({ type: 'LOGIN_FAILURE', payload: 'Invalid or expired token' })
             }
         } catch (error) {
             console.error('Session check failed:', error)
@@ -169,12 +158,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     const refreshUser = async () => {
-        if (!state.user) return
-
         try {
-            // For now, just keep the current user data
-            // In production, this would make an API call to refresh user data
-            console.log('User refresh requested for:', state.user.id)
+            const token = getStoredToken()
+            if (!token) return
+
+            // Fetch fresh user data from the API
+            const response = await fetch('/api/auth/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                dispatch({ type: 'LOGIN_SUCCESS', payload: data.user })
+            } else {
+                console.error('Failed to refresh user data')
+            }
         } catch (error) {
             console.error('Failed to refresh user:', error)
             dispatch({ type: 'SET_ERROR', payload: 'Failed to refresh user data' })
