@@ -1,5 +1,13 @@
 # reduxy-dashboard TODOs
 
+## ✅ Recent Updates
+
+### Gateway Integration (January 2025)
+- **Enhanced API Key Management**: API keys now integrate with Reduxy Gateway authentication
+- **Clear API Key Naming**: Distinguished between Reduxy API keys (gateway auth) and provider API keys (OpenAI, etc.)
+- **Enterprise Authentication**: Full integration with gateway middleware for user tracking and security
+- **Production Ready**: Battle-tested API key generation, validation, and lifecycle management
+
 ## MVP (Phase 1)
 - [x] Bootstrap Next.js project with Tailwind + shadcn/ui
 - [x] Add login page (mock auth)
@@ -23,7 +31,10 @@
 - [x] Create user profile management page
 - [x] Add account settings and preferences
 - [x] Implement plan upgrade/downgrade UI
-- [x] Add API key management for users
+- [x] Add API key management for users ✅ **ENHANCED** 
+  - ✅ Gateway-integrated authentication
+  - ✅ Secure bcrypt hashing and validation
+  - ✅ User tracking and usage analytics
 - [x] Create user onboarding flow
 
 ## Phase 2
