@@ -13,7 +13,8 @@ import {
     Moon,
     Sun,
     LogOut,
-    User
+    User,
+    Scissors
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/auth-context"
@@ -33,6 +34,11 @@ const navigation = [
         name: "PII Detection",
         href: "/pii",
         icon: Shield,
+    },
+    {
+        name: "Redact Demo",
+        href: "/redact",
+        icon: Scissors,
     },
     {
         name: "Analytics",
