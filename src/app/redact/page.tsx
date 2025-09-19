@@ -22,7 +22,9 @@ import {
     Eye,
     EyeOff,
     Shield,
-    Zap
+    Zap,
+    ChevronDown,
+    ChevronRight
 } from "lucide-react"
 
 interface PIIDetection {
@@ -58,6 +60,7 @@ export default function RedactPage() {
     const [error, setError] = useState<string | null>(null)
     const [showApiKey, setShowApiKey] = useState(false)
     const [copiedText, setCopiedText] = useState<string | null>(null)
+    const [showDetections, setShowDetections] = useState(false)
 
     // Detection options
     const [detectionOptions, setDetectionOptions] = useState({
@@ -341,7 +344,7 @@ export default function RedactPage() {
                 {/* Results */}
                 <div className="space-y-6">
                     {error && (
-                        <Card className="border-destructive">
+                        <Card className="border-destructive/50">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-destructive">
                                     <AlertCircle className="h-5 w-5" />
@@ -390,52 +393,39 @@ export default function RedactPage() {
                                 </CardContent>
                             </Card>
 
-                            {/* PII Detections */}
-                            {response.pii_detections.length > 0 && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Shield className="h-5 w-5 text-destructive" />
-                                            PII Detections ({response.pii_detections.length})
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Sensitive information found in the input text
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-3">
-                                            {response.pii_detections.map((detection, index) => (
-                                                <div key={index} className="border rounded-lg p-3">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <Badge variant="destructive">
-                                                            {detection.entity_type}
-                                                        </Badge>
-                                                        <Badge variant="outline">
-                                                            {Math.round(detection.confidence * 100)}% confidence
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="space-y-1 text-sm">
-                                                        <div>
-                                                            <span className="text-muted-foreground">Original: </span>
-                                                            <code className="bg-destructive/10 px-1 rounded">{detection.text}</code>
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-muted-foreground">Masked: </span>
-                                                            <code className="bg-muted px-1 rounded">{detection.masked_text}</code>
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-muted-foreground">Position: </span>
-                                                            <span>{detection.start}-{detection.end}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
+                            {/* Redacted Text - Show First */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Shield className="h-5 w-5" />
+                                        Redacted Text
+                                    </CardTitle>
+                                    <CardDescription>
+                                        The text after PII detection and masking
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="relative">
+                                        <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap overflow-x-auto">
+                                            {response.redacted_request.messages[0].content}
+                                        </pre>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="absolute top-2 right-2"
+                                            onClick={() => copyToClipboard(response.redacted_request.messages[0].content, 'redacted')}
+                                        >
+                                            {copiedText === 'redacted' ? (
+                                                <Check className="w-4 h-4" />
+                                            ) : (
+                                                <Copy className="w-4 h-4" />
+                                            )}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                            {/* Original vs Redacted */}
+                            {/* Original Text */}
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Original Text</CardTitle>
@@ -464,51 +454,77 @@ export default function RedactPage() {
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Shield className="h-5 w-5 text-green-600" />
-                                        Redacted Text
-                                    </CardTitle>
-                                    <CardDescription>
-                                        The text after PII detection and masking
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="relative">
-                                        <pre className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg text-sm whitespace-pre-wrap overflow-x-auto border border-green-200 dark:border-green-800">
-                                            {response.redacted_request.messages[0].content}
-                                        </pre>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="absolute top-2 right-2"
-                                            onClick={() => copyToClipboard(response.redacted_request.messages[0].content, 'redacted')}
-                                        >
-                                            {copiedText === 'redacted' ? (
-                                                <Check className="w-4 h-4" />
+                            {/* PII Detections - Collapsible */}
+                            {response.pii_detections.length > 0 && (
+                                <Card>
+                                    <CardHeader
+                                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                        onClick={() => setShowDetections(!showDetections)}
+                                    >
+                                        <CardTitle className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Shield className="h-5 w-5" />
+                                                PII Detections ({response.pii_detections.length})
+                                            </div>
+                                            {showDetections ? (
+                                                <ChevronDown className="h-4 w-4" />
                                             ) : (
-                                                <Copy className="w-4 h-4" />
+                                                <ChevronRight className="h-4 w-4" />
                                             )}
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {showDetections ? 'Click to hide' : 'Click to view'} detailed PII detection results
+                                        </CardDescription>
+                                    </CardHeader>
+                                    {showDetections && (
+                                        <CardContent>
+                                            <div className="space-y-3">
+                                                {response.pii_detections.map((detection, index) => (
+                                                    <div key={index} className="border rounded-lg p-3">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <Badge variant="secondary">
+                                                                {detection.entity_type}
+                                                            </Badge>
+                                                            <Badge variant="outline">
+                                                                {Math.round(detection.confidence * 100)}% confidence
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="space-y-1 text-sm">
+                                                            <div>
+                                                                <span className="text-muted-foreground">Original: </span>
+                                                                <code className="bg-muted px-1 rounded">{detection.text}</code>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-muted-foreground">Masked: </span>
+                                                                <code className="bg-muted px-1 rounded">{detection.masked_text}</code>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-muted-foreground">Position: </span>
+                                                                <span>{detection.start}-{detection.end}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    )}
+                                </Card>
+                            )}
                         </>
                     )}
 
                     {/* Info Card */}
                     {!response && !error && (
-                        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+                        <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                                <CardTitle className="flex items-center gap-2">
                                     <Info className="h-5 w-5" />
                                     About PII Redaction
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-3 text-sm text-blue-700 dark:text-blue-300">
+                            <CardContent className="space-y-3 text-sm">
                                 <p>
-                                    The <code>/chat/redact</code> endpoint processes your text through advanced PII detection
+                                    The <code className="bg-muted px-1 rounded">/chat/redact</code> endpoint processes your text through advanced PII detection
                                     and masking without forwarding to any AI provider.
                                 </p>
                                 <div className="space-y-2">
@@ -524,7 +540,7 @@ export default function RedactPage() {
                                         <div>• Passport numbers</div>
                                     </div>
                                 </div>
-                                <p>
+                                <p className="text-muted-foreground">
                                     Detection features vary by plan. Enterprise plans include advanced engines
                                     like spaCy NER and enhanced Presidio detection.
                                 </p>
