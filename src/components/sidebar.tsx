@@ -62,8 +62,8 @@ export function Sidebar() {
             {/* Logo */}
             <div className="flex h-16 items-center border-b px-6">
                 <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                        <span className="text-primary-foreground font-bold text-sm">R</span>
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                        <span className="text-white font-bold text-sm">R</span>
                     </div>
                     <div>
                         <div className="font-semibold text-lg">Reduxy</div>
