@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/contexts/auth-context"
 import { updateProfileSchema, updatePasswordSchema, createApiKeySchema } from "@/lib/validations"
+import { cn } from "@/lib/utils"
 import { getInitials, formatPlanName } from "@/lib/auth"
 import { PLAN_DETAILS, PLAN_LIMITS } from "@/types/auth"
 import {
@@ -24,8 +25,18 @@ import {
     Check,
     Eye,
     EyeOff,
-    Loader2
+    Loader2,
+    AlertTriangle,
+    CheckCircle2
 } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function ProfilePage() {
     const { user, refreshUser } = useAuth()
@@ -52,6 +63,8 @@ export default function ProfilePage() {
 
     // API key form state
     const [apiKeyName, setApiKeyName] = useState('')
+    const [newlyCreatedApiKey, setNewlyCreatedApiKey] = useState<{ name: string; key: string } | null>(null)
+    const [showApiKeyModal, setShowApiKeyModal] = useState(false)
 
     useEffect(() => {
         if (user) {
@@ -172,20 +185,29 @@ export default function ProfilePage() {
 
     const handleCreateApiKey = async (e: React.FormEvent) => {
         e.preventDefault()
-        setLoading(prev => ({ ...prev, apiKey: true }))
         clearMessages()
 
-        try {
-            const result = createApiKeySchema.safeParse({ name: apiKeyName })
-            if (!result.success) {
-                setErrors({ apiKey: result.error.errors[0].message })
-                return
-            }
+        // Validate first before setting loading
+        const trimmedName = apiKeyName.trim()
+        if (!trimmedName) {
+            setErrors({ apiKey: 'API key name is required' })
+            return
+        }
 
+        const result = createApiKeySchema.safeParse({ name: trimmedName })
+        if (!result.success) {
+            setErrors({ apiKey: result.error.errors[0].message })
+            return
+        }
+
+        // Now start loading
+        setLoading(prev => ({ ...prev, apiKey: true }))
+
+        try {
             // Create API key via API
             const response = await makeAuthenticatedRequest('/api/auth/api-keys', {
                 method: 'POST',
-                body: JSON.stringify({ name: apiKeyName })
+                body: JSON.stringify({ name: trimmedName })
             })
 
             const data = await response.json()
@@ -194,17 +216,17 @@ export default function ProfilePage() {
                 throw new Error(data.error || 'Failed to create API key')
             }
 
+            // Show the modal with the new API key
+            setNewlyCreatedApiKey({ name: trimmedName, key: data.apiKey })
+            setShowApiKeyModal(true)
             setApiKeyName('')
-            setSuccess({
-                apiKey: `API key created successfully! Save this key: ${data.apiKey}`
-            })
 
             // Refresh user data to show the new API key
             await refreshUser()
 
-            setLoading(prev => ({ ...prev, apiKey: false }))
         } catch (error) {
-            setErrors({ apiKey: 'Failed to create API key' })
+            setErrors({ apiKey: error instanceof Error ? error.message : 'Failed to create API key' })
+        } finally {
             setLoading(prev => ({ ...prev, apiKey: false }))
         }
     }
@@ -558,42 +580,61 @@ export default function ProfilePage() {
                                 {/* Create New API Key */}
                                 <div className="border rounded-lg p-4">
                                     <h4 className="text-sm font-medium mb-3">Create New API Key</h4>
-                                    <form onSubmit={handleCreateApiKey} className="flex gap-2">
-                                        <Input
-                                            placeholder="API Key Name (e.g., Production, Development)"
-                                            value={apiKeyName}
-                                            onChange={(e) => setApiKeyName(e.target.value)}
-                                            className="flex-1"
-                                        />
-                                        <Button type="submit" disabled={loading.apiKey}>
-                                            {loading.apiKey ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <Plus className="w-4 h-4 mr-2" />
-                                                    Create
-                                                </>
-                                            )}
-                                        </Button>
+                                    <form onSubmit={handleCreateApiKey} className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="API Key Name (e.g., Production, Development)"
+                                                value={apiKeyName}
+                                                onChange={(e) => {
+                                                    setApiKeyName(e.target.value)
+                                                    if (errors.apiKey) setErrors(prev => ({ ...prev, apiKey: '' }))
+                                                }}
+                                                className={cn("flex-1", errors.apiKey && "border-destructive")}
+                                            />
+                                            <Button type="submit" disabled={loading.apiKey}>
+                                                {loading.apiKey ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <Plus className="w-4 h-4 mr-2" />
+                                                        Create
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                        {errors.apiKey && (
+                                            <div className="flex items-center gap-2 text-sm text-destructive">
+                                                <AlertTriangle className="w-4 h-4" />
+                                                {errors.apiKey}
+                                            </div>
+                                        )}
                                     </form>
-                                    {errors.apiKey && (
-                                        <p className="text-sm text-destructive mt-2">{errors.apiKey}</p>
-                                    )}
-                                    {success.apiKey && (
-                                        <p className="text-sm text-green-800 mt-2">{success.apiKey}</p>
-                                    )}
                                 </div>
 
                                 {/* Existing API Keys */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-medium">Your API Keys</h4>
                                     {user.apiKeys.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">No API keys created yet.</p>
+                                        <div className="border border-dashed rounded-lg p-6 text-center">
+                                            <Key className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                                            <p className="text-sm text-muted-foreground">No API keys created yet.</p>
+                                            <p className="text-xs text-muted-foreground mt-1">Create your first API key to get started.</p>
+                                        </div>
                                     ) : (
                                         user.apiKeys.map((apiKey) => (
-                                            <div key={apiKey.id} className="border rounded-lg p-4">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <h5 className="font-medium">{apiKey.name}</h5>
+                                            <div key={apiKey.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+                                                            <Key className="w-4 h-4 text-white" />
+                                                        </div>
+                                                        <div>
+                                                            <h5 className="font-medium">{apiKey.name}</h5>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                Created on {new Date(apiKey.createdAt).toLocaleDateString()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <div className="flex items-center gap-2">
                                                         <Badge variant={apiKey.isActive ? "success" : "secondary"}>
                                                             {apiKey.isActive ? "Active" : "Inactive"}
@@ -603,6 +644,7 @@ export default function ProfilePage() {
                                                             size="sm"
                                                             onClick={() => handleDeleteApiKey(apiKey.id)}
                                                             disabled={loading[`delete_${apiKey.id}`]}
+                                                            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
                                                         >
                                                             {loading[`delete_${apiKey.id}`] ? (
                                                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -613,27 +655,33 @@ export default function ProfilePage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <code className="flex-1 bg-muted p-2 rounded text-sm font-mono">
+                                                    <code className="flex-1 bg-muted/70 p-3 rounded-md text-sm font-mono truncate">
                                                         {apiKey.key}
                                                     </code>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() => copyToClipboard(apiKey.key, apiKey.id)}
+                                                        className="shrink-0"
                                                     >
                                                         {copiedKey === apiKey.id ? (
-                                                            <Check className="w-4 h-4" />
+                                                            <>
+                                                                <Check className="w-4 h-4 mr-1 text-green-500" />
+                                                                Copied
+                                                            </>
                                                         ) : (
-                                                            <Copy className="w-4 h-4" />
+                                                            <>
+                                                                <Copy className="w-4 h-4 mr-1" />
+                                                                Copy
+                                                            </>
                                                         )}
                                                     </Button>
                                                 </div>
-                                                <div className="text-xs text-muted-foreground mt-2">
-                                                    Created on {new Date(apiKey.createdAt).toLocaleDateString()}
-                                                    {apiKey.lastUsed && (
-                                                        <span> • Last used {new Date(apiKey.lastUsed).toLocaleDateString()}</span>
-                                                    )}
-                                                </div>
+                                                {apiKey.lastUsed && (
+                                                    <div className="text-xs text-muted-foreground mt-2">
+                                                        Last used {new Date(apiKey.lastUsed).toLocaleDateString()}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))
                                     )}
@@ -641,6 +689,84 @@ export default function ProfilePage() {
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* New API Key Created Modal */}
+                    <Dialog open={showApiKeyModal} onOpenChange={setShowApiKeyModal}>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                        <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <div>
+                                        <DialogTitle>API Key Created!</DialogTitle>
+                                        <DialogDescription>
+                                            {newlyCreatedApiKey?.name}
+                                        </DialogDescription>
+                                    </div>
+                                </div>
+                            </DialogHeader>
+                            
+                            <div className="space-y-4">
+                                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                        <div className="text-sm">
+                                            <p className="font-medium text-amber-800 dark:text-amber-200">
+                                                Save your API key now!
+                                            </p>
+                                            <p className="text-amber-700 dark:text-amber-300 mt-1">
+                                                This is the only time you&apos;ll see the full key. Store it securely.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Your API Key</Label>
+                                    <div className="relative">
+                                        <code className="block w-full bg-muted p-4 rounded-lg text-sm font-mono break-all border">
+                                            {newlyCreatedApiKey?.key}
+                                        </code>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    className="w-full"
+                                    onClick={() => {
+                                        if (newlyCreatedApiKey) {
+                                            copyToClipboard(newlyCreatedApiKey.key, 'new-key')
+                                        }
+                                    }}
+                                >
+                                    {copiedKey === 'new-key' ? (
+                                        <>
+                                            <Check className="w-4 h-4 mr-2 text-green-400" />
+                                            Copied to Clipboard!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-4 h-4 mr-2" />
+                                            Copy to Clipboard
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+
+                            <DialogFooter className="mt-4">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowApiKeyModal(false)
+                                        setNewlyCreatedApiKey(null)
+                                    }}
+                                    className="w-full sm:w-auto"
+                                >
+                                    Done
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     {/* Plan Tab */}
                     {activeTab === 'plan' && (
