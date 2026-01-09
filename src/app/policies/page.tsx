@@ -30,10 +30,20 @@ export default function PoliciesPage() {
         fetchPolicies()
     }, [])
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('reduxy_auth_token')
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    }
+
     const fetchPolicies = async () => {
         try {
             setLoading(true)
-            const response = await fetch('/api/policies')
+            const response = await fetch('/api/policies', {
+                headers: getAuthHeaders()
+            })
             if (!response.ok) {
                 throw new Error('Failed to fetch policies')
             }
@@ -54,7 +64,8 @@ export default function PoliciesPage() {
         setDeletingId(policyId)
         try {
             const response = await fetch(`/api/policies/${policyId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             })
 
             if (!response.ok) {
@@ -75,7 +86,7 @@ export default function PoliciesPage() {
         try {
             const response = await fetch(`/api/policies/${policyId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ isDefault: true })
             })
 
@@ -94,7 +105,7 @@ export default function PoliciesPage() {
         try {
             const response = await fetch('/api/policies', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     name: `${policy.name} (Copy)`,
                     description: policy.description,

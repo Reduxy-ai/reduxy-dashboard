@@ -75,6 +75,14 @@ export default function EditPolicyPage() {
     // Active tab
     const [activeTab, setActiveTab] = useState<'pii' | 'document' | 'image' | 'text'>('pii')
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('reduxy_auth_token')
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    }
+
     useEffect(() => {
         fetchPolicy()
     }, [policyId])
@@ -82,7 +90,9 @@ export default function EditPolicyPage() {
     const fetchPolicy = async () => {
         try {
             setLoading(true)
-            const response = await fetch(`/api/policies/${policyId}`)
+            const response = await fetch(`/api/policies/${policyId}`, {
+                headers: getAuthHeaders()
+            })
             if (!response.ok) {
                 throw new Error('Policy not found')
             }
@@ -115,7 +125,7 @@ export default function EditPolicyPage() {
         try {
             const response = await fetch(`/api/policies/${policyId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     name: name.trim(),
                     description: description.trim() || undefined,
@@ -148,7 +158,8 @@ export default function EditPolicyPage() {
         setDeleting(true)
         try {
             const response = await fetch(`/api/policies/${policyId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             })
 
             if (!response.ok) {

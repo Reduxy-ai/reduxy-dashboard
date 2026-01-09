@@ -78,9 +78,13 @@ export default function NewPolicyPage() {
         setError(null)
 
         try {
+            const token = localStorage.getItem('reduxy_auth_token')
             const response = await fetch('/api/policies', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     name: name.trim(),
                     description: description.trim() || undefined,

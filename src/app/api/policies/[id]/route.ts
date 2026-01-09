@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { verifyJWT } from '@/lib/auth'
 import { 
     getPolicyById, 
@@ -8,6 +7,15 @@ import {
 } from '@/lib/database-server'
 import type { PolicyData } from '@/types/auth'
 
+// Helper to extract token from Authorization header
+function getTokenFromRequest(request: NextRequest): string | null {
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+        return authHeader.substring(7)
+    }
+    return null
+}
+
 // GET /api/policies/[id] - Get a single policy
 export async function GET(
     request: NextRequest,
@@ -15,12 +23,11 @@ export async function GET(
 ) {
     try {
         const { id } = await params
-        const cookieStore = await cookies()
-        const token = cookieStore.get('auth_token')?.value
+        const token = getTokenFromRequest(request)
 
         if (!token) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Unauthorized - No token provided' },
                 { status: 401 }
             )
         }
@@ -28,7 +35,7 @@ export async function GET(
         const payload = await verifyJWT(token)
         if (!payload || !payload.userId) {
             return NextResponse.json(
-                { error: 'Invalid token' },
+                { error: 'Invalid or expired token' },
                 { status: 401 }
             )
         }
@@ -59,12 +66,11 @@ export async function PUT(
 ) {
     try {
         const { id } = await params
-        const cookieStore = await cookies()
-        const token = cookieStore.get('auth_token')?.value
+        const token = getTokenFromRequest(request)
 
         if (!token) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Unauthorized - No token provided' },
                 { status: 401 }
             )
         }
@@ -72,7 +78,7 @@ export async function PUT(
         const payload = await verifyJWT(token)
         if (!payload || !payload.userId) {
             return NextResponse.json(
-                { error: 'Invalid token' },
+                { error: 'Invalid or expired token' },
                 { status: 401 }
             )
         }
@@ -123,12 +129,11 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params
-        const cookieStore = await cookies()
-        const token = cookieStore.get('auth_token')?.value
+        const token = getTokenFromRequest(request)
 
         if (!token) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Unauthorized - No token provided' },
                 { status: 401 }
             )
         }
@@ -136,7 +141,7 @@ export async function DELETE(
         const payload = await verifyJWT(token)
         if (!payload || !payload.userId) {
             return NextResponse.json(
-                { error: 'Invalid token' },
+                { error: 'Invalid or expired token' },
                 { status: 401 }
             )
         }
@@ -175,4 +180,3 @@ export async function DELETE(
         )
     }
 }
-
