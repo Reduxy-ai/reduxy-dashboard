@@ -14,7 +14,9 @@ import {
     Sun,
     LogOut,
     User,
-    Scissors
+    Scissors,
+    FileKey,
+    FlaskConical
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/auth-context"
@@ -26,19 +28,19 @@ const navigation = [
         icon: BarChart3,
     },
     {
+        name: "Test Lab",
+        href: "/redact",
+        icon: FlaskConical,
+    },
+    {
+        name: "Policies",
+        href: "/policies",
+        icon: FileKey,
+    },
+    {
         name: "Logs",
         href: "/logs",
         icon: FileText,
-    },
-    {
-        name: "PII Detection",
-        href: "/pii",
-        icon: Shield,
-    },
-    {
-        name: "Redact Demo",
-        href: "/redact",
-        icon: Scissors,
     },
     {
         name: "Analytics",

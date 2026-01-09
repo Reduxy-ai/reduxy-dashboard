@@ -181,6 +181,83 @@ const migrations: Migration[] = [
       DROP TABLE IF EXISTS webhook_deliveries CASCADE;
       DROP TABLE IF EXISTS webhooks CASCADE;
     `
+    },
+    {
+        id: '004',
+        name: 'add_policies',
+        timestamp: '2026-01-09T12:00:00Z',
+        up: `
+      -- Create policies table for PII detection configuration
+      CREATE TABLE IF NOT EXISTS policies (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        
+        -- PII type settings (which types to detect and how to mask)
+        pii_settings JSONB NOT NULL DEFAULT '{
+          "PERSON": {"enabled": true, "strategy": "unique_token", "min_confidence": 0.85},
+          "EMAIL": {"enabled": true, "strategy": "token", "min_confidence": 0.80},
+          "PHONE": {"enabled": true, "strategy": "partial", "min_confidence": 0.80},
+          "SSN": {"enabled": true, "strategy": "full", "min_confidence": 0.90},
+          "CREDIT_CARD": {"enabled": true, "strategy": "partial", "min_confidence": 0.90},
+          "ADDRESS": {"enabled": true, "strategy": "token", "min_confidence": 0.85},
+          "DATE": {"enabled": false, "strategy": "token", "min_confidence": 0.80},
+          "IP_ADDRESS": {"enabled": false, "strategy": "token", "min_confidence": 0.80}
+        }',
+        
+        -- Document-specific settings (PDF, DOCX, XLSX, PPTX)
+        document_settings JSONB NOT NULL DEFAULT '{
+          "masking_style": "unique_token",
+          "preserve_formatting": true,
+          "generate_mapping": true
+        }',
+        
+        -- Image-specific settings (PNG, JPG, etc.)
+        image_settings JSONB NOT NULL DEFAULT '{
+          "masking_style": "blur",
+          "blur_intensity": 25,
+          "include_bounding_boxes": true
+        }',
+        
+        -- Text/Chat-specific settings
+        text_settings JSONB NOT NULL DEFAULT '{
+          "masking_style": "unique_token",
+          "return_mapping": true
+        }',
+        
+        is_default BOOLEAN DEFAULT false,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      -- Add policy_id to api_keys (each key can be bound to a policy)
+      ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS policy_id UUID REFERENCES policies(id) ON DELETE SET NULL;
+
+      -- Create indexes
+      CREATE INDEX IF NOT EXISTS idx_policies_user_id ON policies(user_id);
+      CREATE INDEX IF NOT EXISTS idx_policies_default ON policies(is_default) WHERE is_default = TRUE;
+      CREATE INDEX IF NOT EXISTS idx_policies_active ON policies(is_active) WHERE is_active = TRUE;
+      CREATE INDEX IF NOT EXISTS idx_api_keys_policy_id ON api_keys(policy_id);
+
+      -- Ensure only one default policy per user
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_policies_user_default 
+        ON policies(user_id) 
+        WHERE is_default = TRUE;
+    `,
+        down: `
+      -- Remove policies support
+      DROP INDEX IF EXISTS idx_policies_user_default;
+      DROP INDEX IF EXISTS idx_api_keys_policy_id;
+      DROP INDEX IF EXISTS idx_policies_active;
+      DROP INDEX IF EXISTS idx_policies_default;
+      DROP INDEX IF EXISTS idx_policies_user_id;
+      
+      ALTER TABLE api_keys DROP COLUMN IF EXISTS policy_id;
+      
+      DROP TABLE IF EXISTS policies CASCADE;
+    `
     }
 ]
 

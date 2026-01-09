@@ -23,6 +23,124 @@ export interface ApiKey {
     lastUsed?: string
     createdAt: string
     isActive: boolean
+    policyId?: string
+    policy?: Policy
+}
+
+// PII Types supported by the system
+export type PIIType = 
+    | 'PERSON' 
+    | 'EMAIL' 
+    | 'PHONE' 
+    | 'SSN' 
+    | 'CREDIT_CARD' 
+    | 'ADDRESS' 
+    | 'DATE' 
+    | 'IP_ADDRESS'
+    | 'FIRST_NAME'
+    | 'LAST_NAME'
+
+// Masking strategies
+export type MaskingStrategy = 'token' | 'unique_token' | 'partial' | 'full' | 'none'
+export type ImageMaskingStyle = 'blur' | 'black_box' | 'pixelate'
+
+// PII setting for a single entity type
+export interface PIISetting {
+    enabled: boolean
+    strategy: MaskingStrategy
+    min_confidence: number
+}
+
+// Document-specific settings
+export interface DocumentSettings {
+    masking_style: MaskingStrategy
+    preserve_formatting: boolean
+    generate_mapping: boolean
+}
+
+// Image-specific settings
+export interface ImageSettings {
+    masking_style: ImageMaskingStyle
+    blur_intensity: number
+    include_bounding_boxes: boolean
+}
+
+// Text/Chat-specific settings
+export interface TextSettings {
+    masking_style: MaskingStrategy
+    return_mapping: boolean
+}
+
+// Policy configuration
+export interface Policy {
+    id: string
+    userId: string
+    name: string
+    description?: string
+    piiSettings: Record<PIIType, PIISetting>
+    documentSettings: DocumentSettings
+    imageSettings: ImageSettings
+    textSettings: TextSettings
+    isDefault: boolean
+    isActive: boolean
+    createdAt: string
+    updatedAt: string
+}
+
+// Policy creation/update data
+export interface PolicyData {
+    name: string
+    description?: string
+    piiSettings?: Partial<Record<PIIType, Partial<PIISetting>>>
+    documentSettings?: Partial<DocumentSettings>
+    imageSettings?: Partial<ImageSettings>
+    textSettings?: Partial<TextSettings>
+    isDefault?: boolean
+}
+
+// Default PII settings for new policies
+export const DEFAULT_PII_SETTINGS: Record<PIIType, PIISetting> = {
+    PERSON: { enabled: true, strategy: 'unique_token', min_confidence: 0.85 },
+    EMAIL: { enabled: true, strategy: 'token', min_confidence: 0.80 },
+    PHONE: { enabled: true, strategy: 'partial', min_confidence: 0.80 },
+    SSN: { enabled: true, strategy: 'full', min_confidence: 0.90 },
+    CREDIT_CARD: { enabled: true, strategy: 'partial', min_confidence: 0.90 },
+    ADDRESS: { enabled: true, strategy: 'token', min_confidence: 0.85 },
+    DATE: { enabled: false, strategy: 'token', min_confidence: 0.80 },
+    IP_ADDRESS: { enabled: false, strategy: 'token', min_confidence: 0.80 },
+    FIRST_NAME: { enabled: true, strategy: 'unique_token', min_confidence: 0.85 },
+    LAST_NAME: { enabled: true, strategy: 'unique_token', min_confidence: 0.85 },
+}
+
+export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
+    masking_style: 'unique_token',
+    preserve_formatting: true,
+    generate_mapping: true,
+}
+
+export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
+    masking_style: 'blur',
+    blur_intensity: 25,
+    include_bounding_boxes: true,
+}
+
+export const DEFAULT_TEXT_SETTINGS: TextSettings = {
+    masking_style: 'unique_token',
+    return_mapping: true,
+}
+
+// PII Type display information
+export const PII_TYPE_INFO: Record<PIIType, { label: string; description: string; icon: string }> = {
+    PERSON: { label: 'Person Names', description: 'Full names (e.g., John Smith)', icon: '👤' },
+    FIRST_NAME: { label: 'First Names', description: 'First names only', icon: '👤' },
+    LAST_NAME: { label: 'Last Names', description: 'Last names only', icon: '👤' },
+    EMAIL: { label: 'Email Addresses', description: 'Email addresses', icon: '📧' },
+    PHONE: { label: 'Phone Numbers', description: 'Phone numbers (intl. supported)', icon: '📱' },
+    SSN: { label: 'Social Security', description: 'US Social Security Numbers', icon: '🔐' },
+    CREDIT_CARD: { label: 'Credit Cards', description: 'Credit card numbers', icon: '💳' },
+    ADDRESS: { label: 'Addresses', description: 'Street addresses', icon: '🏠' },
+    DATE: { label: 'Dates', description: 'Date values', icon: '📅' },
+    IP_ADDRESS: { label: 'IP Addresses', description: 'IPv4 and IPv6 addresses', icon: '🌐' },
 }
 
 export interface UserPreferences {

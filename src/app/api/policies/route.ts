@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { verifyToken } from '@/lib/auth'
+import { 
+    getPoliciesForUser, 
+    createPolicyInDB,
+    getDefaultPolicy 
+} from '@/lib/database-server'
+import type { PolicyData } from '@/types/auth'
+
+// GET /api/policies - List all policies for the current user
+export async function GET(request: NextRequest) {
+    try {
+        const cookieStore = await cookies()
+        const token = cookieStore.get('auth_token')?.value
+
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            )
+        }
+
+        const payload = await verifyToken(token)
+        if (!payload || !payload.userId) {
+            return NextResponse.json(
+                { error: 'Invalid token' },
+                { status: 401 }
+            )
+        }
+
+        const policies = await getPoliciesForUser(payload.userId)
+
+        return NextResponse.json({ policies })
+    } catch (error) {
+        console.error('Error fetching policies:', error)
+        return NextResponse.json(
+            { error: 'Failed to fetch policies' },
+            { status: 500 }
+        )
+    }
+}
+
+// POST /api/policies - Create a new policy
+export async function POST(request: NextRequest) {
+    try {
+        const cookieStore = await cookies()
+        const token = cookieStore.get('auth_token')?.value
+
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            )
+        }
+
+        const payload = await verifyToken(token)
+        if (!payload || !payload.userId) {
+            return NextResponse.json(
+                { error: 'Invalid token' },
+                { status: 401 }
+            )
+        }
+
+        const body = await request.json()
+        
+        // Validate required fields
+        if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+            return NextResponse.json(
+                { error: 'Policy name is required' },
+                { status: 400 }
+            )
+        }
+
+        const policyData: PolicyData = {
+            name: body.name.trim(),
+            description: body.description?.trim() || undefined,
+            piiSettings: body.piiSettings,
+            documentSettings: body.documentSettings,
+            imageSettings: body.imageSettings,
+            textSettings: body.textSettings,
+            isDefault: body.isDefault || false,
+        }
+
+        const policy = await createPolicyInDB(payload.userId, policyData)
+
+        if (!policy) {
+            return NextResponse.json(
+                { error: 'Failed to create policy' },
+                { status: 500 }
+            )
+        }
+
+        return NextResponse.json({ policy }, { status: 201 })
+    } catch (error) {
+        console.error('Error creating policy:', error)
+        return NextResponse.json(
+            { error: 'Failed to create policy' },
+            { status: 500 }
+        )
+    }
+}
+

@@ -223,4 +223,268 @@ export async function deleteApiKeyInDB(userId: string, keyId: string): Promise<b
         console.error('Error deleting API key:', error)
         return false
     }
+}
+
+// ==================== POLICY FUNCTIONS ====================
+
+import type { Policy, PolicyData } from '@/types/auth'
+
+// Transform database row to Policy object
+function transformPolicyRow(row: any): Policy {
+    return {
+        id: row.id,
+        userId: row.user_id,
+        name: row.name,
+        description: row.description,
+        piiSettings: row.pii_settings,
+        documentSettings: row.document_settings,
+        imageSettings: row.image_settings,
+        textSettings: row.text_settings,
+        isDefault: row.is_default,
+        isActive: row.is_active,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    }
+}
+
+// Get all policies for a user
+export async function getPoliciesForUser(userId: string): Promise<Policy[]> {
+    try {
+        const result = await query(
+            `SELECT * FROM policies 
+             WHERE user_id = $1 AND is_active = true 
+             ORDER BY is_default DESC, created_at DESC`,
+            [userId]
+        )
+        return result.rows.map(transformPolicyRow)
+    } catch (error) {
+        console.error('Error getting policies:', error)
+        return []
+    }
+}
+
+// Get a single policy by ID
+export async function getPolicyById(policyId: string, userId: string): Promise<Policy | null> {
+    try {
+        const result = await query(
+            'SELECT * FROM policies WHERE id = $1 AND user_id = $2',
+            [policyId, userId]
+        )
+        if (result.rows.length === 0) {
+            return null
+        }
+        return transformPolicyRow(result.rows[0])
+    } catch (error) {
+        console.error('Error getting policy:', error)
+        return null
+    }
+}
+
+// Get default policy for a user
+export async function getDefaultPolicy(userId: string): Promise<Policy | null> {
+    try {
+        const result = await query(
+            'SELECT * FROM policies WHERE user_id = $1 AND is_default = true AND is_active = true',
+            [userId]
+        )
+        if (result.rows.length === 0) {
+            return null
+        }
+        return transformPolicyRow(result.rows[0])
+    } catch (error) {
+        console.error('Error getting default policy:', error)
+        return null
+    }
+}
+
+// Create a new policy
+export async function createPolicyInDB(userId: string, data: PolicyData): Promise<Policy | null> {
+    try {
+        // If this is set as default, unset other defaults first
+        if (data.isDefault) {
+            await query(
+                'UPDATE policies SET is_default = false WHERE user_id = $1 AND is_default = true',
+                [userId]
+            )
+        }
+
+        const result = await query(
+            `INSERT INTO policies (
+                user_id, name, description, 
+                pii_settings, document_settings, image_settings, text_settings,
+                is_default, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+            RETURNING *`,
+            [
+                userId,
+                data.name,
+                data.description || null,
+                JSON.stringify(data.piiSettings || {}),
+                JSON.stringify(data.documentSettings || {}),
+                JSON.stringify(data.imageSettings || {}),
+                JSON.stringify(data.textSettings || {}),
+                data.isDefault || false,
+            ]
+        )
+
+        return transformPolicyRow(result.rows[0])
+    } catch (error) {
+        console.error('Error creating policy:', error)
+        return null
+    }
+}
+
+// Update an existing policy
+export async function updatePolicyInDB(
+    policyId: string, 
+    userId: string, 
+    data: Partial<PolicyData>
+): Promise<Policy | null> {
+    try {
+        // If setting as default, unset other defaults first
+        if (data.isDefault) {
+            await query(
+                'UPDATE policies SET is_default = false WHERE user_id = $1 AND is_default = true AND id != $2',
+                [userId, policyId]
+            )
+        }
+
+        // Build dynamic update query
+        const updates: string[] = []
+        const values: any[] = []
+        let paramCount = 1
+
+        if (data.name !== undefined) {
+            updates.push(`name = $${paramCount++}`)
+            values.push(data.name)
+        }
+        if (data.description !== undefined) {
+            updates.push(`description = $${paramCount++}`)
+            values.push(data.description)
+        }
+        if (data.piiSettings !== undefined) {
+            updates.push(`pii_settings = $${paramCount++}`)
+            values.push(JSON.stringify(data.piiSettings))
+        }
+        if (data.documentSettings !== undefined) {
+            updates.push(`document_settings = $${paramCount++}`)
+            values.push(JSON.stringify(data.documentSettings))
+        }
+        if (data.imageSettings !== undefined) {
+            updates.push(`image_settings = $${paramCount++}`)
+            values.push(JSON.stringify(data.imageSettings))
+        }
+        if (data.textSettings !== undefined) {
+            updates.push(`text_settings = $${paramCount++}`)
+            values.push(JSON.stringify(data.textSettings))
+        }
+        if (data.isDefault !== undefined) {
+            updates.push(`is_default = $${paramCount++}`)
+            values.push(data.isDefault)
+        }
+
+        updates.push('updated_at = NOW()')
+
+        if (updates.length === 1) {
+            // Only updated_at, nothing else to update
+            return await getPolicyById(policyId, userId)
+        }
+
+        values.push(policyId, userId)
+
+        const result = await query(
+            `UPDATE policies SET ${updates.join(', ')} 
+             WHERE id = $${paramCount++} AND user_id = $${paramCount}
+             RETURNING *`,
+            values
+        )
+
+        if (result.rows.length === 0) {
+            return null
+        }
+
+        return transformPolicyRow(result.rows[0])
+    } catch (error) {
+        console.error('Error updating policy:', error)
+        return null
+    }
+}
+
+// Delete a policy (soft delete)
+export async function deletePolicyInDB(policyId: string, userId: string): Promise<boolean> {
+    try {
+        // First check if it's the default policy
+        const policy = await getPolicyById(policyId, userId)
+        if (policy?.isDefault) {
+            // Cannot delete default policy
+            return false
+        }
+
+        // Soft delete
+        const result = await query(
+            'UPDATE policies SET is_active = false WHERE id = $1 AND user_id = $2',
+            [policyId, userId]
+        )
+
+        // Also unbind any API keys using this policy
+        await query(
+            'UPDATE api_keys SET policy_id = NULL WHERE policy_id = $1',
+            [policyId]
+        )
+
+        return result.rowCount > 0
+    } catch (error) {
+        console.error('Error deleting policy:', error)
+        return false
+    }
+}
+
+// Bind policy to API key
+export async function bindPolicyToApiKey(
+    apiKeyId: string, 
+    policyId: string | null, 
+    userId: string
+): Promise<boolean> {
+    try {
+        // Verify the API key belongs to the user
+        const keyCheck = await query(
+            'SELECT id FROM api_keys WHERE id = $1 AND user_id = $2',
+            [apiKeyId, userId]
+        )
+        if (keyCheck.rows.length === 0) {
+            return false
+        }
+
+        // If policyId is provided, verify it belongs to the user
+        if (policyId) {
+            const policyCheck = await query(
+                'SELECT id FROM policies WHERE id = $1 AND user_id = $2 AND is_active = true',
+                [policyId, userId]
+            )
+            if (policyCheck.rows.length === 0) {
+                return false
+            }
+        }
+
+        // Update the binding
+        await query(
+            'UPDATE api_keys SET policy_id = $1 WHERE id = $2',
+            [policyId, apiKeyId]
+        )
+
+        return true
+    } catch (error) {
+        console.error('Error binding policy to API key:', error)
+        return false
+    }
+}
+
+// Create default policy for new user
+export async function createDefaultPolicyForUser(userId: string): Promise<Policy | null> {
+    const defaultPolicyData: PolicyData = {
+        name: 'Default Policy',
+        description: 'Default PII detection policy with standard settings',
+        isDefault: true,
+    }
+    return await createPolicyInDB(userId, defaultPolicyData)
 } 
