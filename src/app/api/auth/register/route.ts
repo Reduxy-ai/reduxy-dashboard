@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         const existingUser = await findUserByEmailInDB(email)
         if (existingUser) {
             return NextResponse.json(
-                { error: 'Email already registered' },
+                { error: 'This email is already registered. Please login instead or use a different email.' },
                 { status: 409 }
             )
         }
@@ -54,8 +54,22 @@ export async function POST(request: NextRequest) {
         })
     } catch (error) {
         console.error('Registration error:', error)
+        
+        // Provide more specific error messages
+        let errorMessage = 'Registration failed. Please try again.'
+        
+        if (error instanceof Error) {
+            if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
+                errorMessage = 'This email is already registered. Please login instead.'
+            } else if (error.message.includes('connection') || error.message.includes('ECONNREFUSED')) {
+                errorMessage = 'Unable to connect to the database. Please try again later.'
+            } else if (error.message.includes('timeout')) {
+                errorMessage = 'Request timed out. Please try again.'
+            }
+        }
+        
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: errorMessage },
             { status: 500 }
         )
     }

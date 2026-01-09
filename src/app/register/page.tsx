@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/contexts/auth-context"
 import { registerSchema, type RegisterFormData } from "@/lib/validations"
 import { PLAN_DETAILS, type MembershipPlan } from "@/types/auth"
-import { Check, ArrowLeft, Loader2, Zap, Rocket, Crown, Building2, TrendingUp, Shield } from "lucide-react"
+import { Check, ArrowLeft, Loader2, Zap, Rocket, Crown, Building2, TrendingUp, Shield, AlertCircle } from "lucide-react"
 import { AuthThemeToggle } from "@/components/auth/theme-toggle"
 
 export default function RegisterPage() {
@@ -251,8 +251,17 @@ export default function RegisterPage() {
                                     </div>
 
                                     {errors.general && (
-                                        <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
-                                            {errors.general}
+                                        <div className="flex items-start gap-3 text-sm text-red-700 bg-red-50 dark:bg-red-950/50 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                                            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="font-medium">Registration failed</p>
+                                                <p className="mt-1 text-red-600 dark:text-red-300">{errors.general}</p>
+                                                {errors.general.includes('already registered') && (
+                                                    <Link href="/login" className="mt-2 inline-block text-purple-600 hover:underline font-medium">
+                                                        Go to login →
+                                                    </Link>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 
