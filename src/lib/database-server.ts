@@ -127,11 +127,20 @@ export async function findUserByEmailInDB(email: string) {
             [user.id]
         )
 
-        // Get API keys
-        const apiKeysResult = await query(
-            'SELECT id, name, key_prefix, last_used, created_at, is_active, policy_id FROM api_keys WHERE user_id = $1 AND is_active = true',
-            [user.id]
-        )
+        // Get API keys (policy_id may not exist if migration hasn't run)
+        let apiKeysResult
+        try {
+            apiKeysResult = await query(
+                'SELECT id, name, key_prefix, last_used, created_at, is_active, policy_id FROM api_keys WHERE user_id = $1 AND is_active = true',
+                [user.id]
+            )
+        } catch (e) {
+            // Fallback if policy_id column doesn't exist yet
+            apiKeysResult = await query(
+                'SELECT id, name, key_prefix, last_used, created_at, is_active FROM api_keys WHERE user_id = $1 AND is_active = true',
+                [user.id]
+            )
+        }
 
         // Get billing info
         const billingResult = await query(
