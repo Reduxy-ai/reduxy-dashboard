@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifyToken } from '@/lib/auth'
+import { verifyJWT } from '@/lib/auth'
 import { 
     getPoliciesForUser, 
     createPolicyInDB,
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        const payload = await verifyToken(token)
+        const payload = await verifyJWT(token)
         if (!payload || !payload.userId) {
             return NextResponse.json(
                 { error: 'Invalid token' },
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const payload = await verifyToken(token)
+        const payload = await verifyJWT(token)
         if (!payload || !payload.userId) {
             return NextResponse.json(
                 { error: 'Invalid token' },

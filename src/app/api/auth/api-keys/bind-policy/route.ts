@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { verifyJWT } from '@/lib/auth'
 import { bindPolicyToApiKey } from '@/lib/database-server'
 
 export async function PUT(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const token = authHeader.substring(7)
-        const payload = await verifyToken(token)
+        const payload = await verifyJWT(token)
         
         if (!payload || !payload.userId) {
             return NextResponse.json(
