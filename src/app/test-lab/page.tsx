@@ -107,7 +107,12 @@ export default function TestLabPage() {
     const fetchPolicies = async () => {
         setLoadingPolicies(true)
         try {
-            const response = await fetch('/api/policies')
+            const token = localStorage.getItem('reduxy_auth_token')
+            const response = await fetch('/api/policies', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
             if (response.ok) {
                 const data = await response.json()
                 setPolicies(data.policies || [])
