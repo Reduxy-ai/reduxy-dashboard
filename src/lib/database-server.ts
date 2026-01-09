@@ -129,7 +129,7 @@ export async function findUserByEmailInDB(email: string) {
 
         // Get API keys
         const apiKeysResult = await query(
-            'SELECT id, name, key_prefix, last_used, created_at, is_active FROM api_keys WHERE user_id = $1 AND is_active = true',
+            'SELECT id, name, key_prefix, last_used, created_at, is_active, policy_id FROM api_keys WHERE user_id = $1 AND is_active = true',
             [user.id]
         )
 
@@ -153,7 +153,8 @@ export async function findUserByEmailInDB(email: string) {
             key: `${key.key_prefix}${'*'.repeat(28)}`, // Show only prefix for security
             lastUsed: key.last_used,
             createdAt: key.created_at,
-            isActive: key.is_active
+            isActive: key.is_active,
+            policyId: key.policy_id || null
         }))
 
         const billingInfo = billingResult.rows[0] ? {

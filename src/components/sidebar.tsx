@@ -29,7 +29,7 @@ const navigation = [
     },
     {
         name: "Test Lab",
-        href: "/redact",
+        href: "/test-lab",
         icon: FlaskConical,
     },
     {

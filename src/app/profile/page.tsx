@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { updateProfileSchema, updatePasswordSchema, createApiKeySchema } from "@/lib/validations"
 import { cn } from "@/lib/utils"
 import { getInitials, formatPlanName } from "@/lib/auth"
-import { PLAN_DETAILS, PLAN_LIMITS } from "@/types/auth"
+import { PLAN_DETAILS, PLAN_LIMITS, type Policy } from "@/types/auth"
 import {
     User,
     Key,
@@ -27,8 +27,11 @@ import {
     EyeOff,
     Loader2,
     AlertTriangle,
-    CheckCircle2
+    CheckCircle2,
+    FileKey,
+    Link2
 } from "lucide-react"
+import Link from "next/link"
 import {
     Dialog,
     DialogContent,
@@ -66,6 +69,49 @@ export default function ProfilePage() {
     const [newlyCreatedApiKey, setNewlyCreatedApiKey] = useState<{ name: string; key: string } | null>(null)
     const [showApiKeyModal, setShowApiKeyModal] = useState(false)
 
+    // Policies state
+    const [policies, setPolicies] = useState<Policy[]>([])
+    const [loadingPolicies, setLoadingPolicies] = useState(false)
+
+    // Fetch policies
+    const fetchPolicies = async () => {
+        setLoadingPolicies(true)
+        try {
+            const response = await fetch('/api/policies')
+            if (response.ok) {
+                const data = await response.json()
+                setPolicies(data.policies || [])
+            }
+        } catch (error) {
+            console.error('Failed to fetch policies:', error)
+        } finally {
+            setLoadingPolicies(false)
+        }
+    }
+
+    // Handle policy binding to API key
+    const handleBindPolicy = async (apiKeyId: string, policyId: string | null) => {
+        setLoading(prev => ({ ...prev, [`bind_${apiKeyId}`]: true }))
+        try {
+            const response = await makeAuthenticatedRequest('/api/auth/api-keys/bind-policy', {
+                method: 'PUT',
+                body: JSON.stringify({ apiKeyId, policyId: policyId || null })
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to bind policy')
+            }
+
+            setSuccess({ apiKey: 'Policy updated successfully!' })
+            await refreshUser()
+        } catch (error) {
+            setErrors({ apiKey: error instanceof Error ? error.message : 'Failed to bind policy' })
+        } finally {
+            setLoading(prev => ({ ...prev, [`bind_${apiKeyId}`]: false }))
+        }
+    }
+
     useEffect(() => {
         if (user) {
             setProfileData({
@@ -73,6 +119,8 @@ export default function ProfilePage() {
                 lastName: user.lastName,
                 company: user.company || ''
             })
+            // Fetch policies when user is available
+            fetchPolicies()
         }
     }, [user])
 
@@ -677,6 +725,40 @@ export default function ProfilePage() {
                                                         )}
                                                     </Button>
                                                 </div>
+
+                                                {/* Policy Binding */}
+                                                <div className="mt-3 pt-3 border-t">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <FileKey className="w-4 h-4 text-muted-foreground" />
+                                                            <span className="text-muted-foreground">Policy:</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <select
+                                                                className="border rounded px-3 py-1 text-sm bg-background min-w-[180px]"
+                                                                value={apiKey.policyId || ''}
+                                                                onChange={(e) => handleBindPolicy(apiKey.id, e.target.value || null)}
+                                                                disabled={loading[`bind_${apiKey.id}`] || loadingPolicies}
+                                                            >
+                                                                <option value="">Use default policy</option>
+                                                                {policies.map((policy) => (
+                                                                    <option key={policy.id} value={policy.id}>
+                                                                        {policy.name} {policy.isDefault ? '(Default)' : ''}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            {loading[`bind_${apiKey.id}`] && (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            )}
+                                                            {policies.length === 0 && !loadingPolicies && (
+                                                                <Link href="/policies/new" className="text-xs text-primary hover:underline">
+                                                                    Create policy
+                                                                </Link>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 {apiKey.lastUsed && (
                                                     <div className="text-xs text-muted-foreground mt-2">
                                                         Last used {new Date(apiKey.lastUsed).toLocaleDateString()}
