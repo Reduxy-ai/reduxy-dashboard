@@ -1,20 +1,20 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
     ArrowLeftRight, 
-    Eye, 
-    EyeOff, 
+    Highlighter,
     Copy, 
     Check,
     ChevronDown,
-    ChevronRight,
-    AlertTriangle,
+    ChevronUp,
     ThumbsUp,
-    ThumbsDown
+    ThumbsDown,
+    X,
+    Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -33,31 +33,30 @@ interface VisualDiffViewProps {
     redactedText: string
     detections: Detection[]
     onFeedback?: (detection: Detection, type: 'correct' | 'incorrect') => void
+    apiKey?: string
     className?: string
 }
 
-// Entity type colors for consistent highlighting
-const ENTITY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-    PERSON: { bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-blue-300 dark:border-blue-700', text: 'text-blue-700 dark:text-blue-300' },
-    EMAIL: { bg: 'bg-green-100 dark:bg-green-900/30', border: 'border-green-300 dark:border-green-700', text: 'text-green-700 dark:text-green-300' },
-    PHONE: { bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-300 dark:border-purple-700', text: 'text-purple-700 dark:text-purple-300' },
-    ADDRESS: { bg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-orange-300 dark:border-orange-700', text: 'text-orange-700 dark:text-orange-300' },
-    SSN: { bg: 'bg-red-100 dark:bg-red-900/30', border: 'border-red-300 dark:border-red-700', text: 'text-red-700 dark:text-red-300' },
-    CREDIT_CARD: { bg: 'bg-pink-100 dark:bg-pink-900/30', border: 'border-pink-300 dark:border-pink-700', text: 'text-pink-700 dark:text-pink-300' },
-    IP_ADDRESS: { bg: 'bg-cyan-100 dark:bg-cyan-900/30', border: 'border-cyan-300 dark:border-cyan-700', text: 'text-cyan-700 dark:text-cyan-300' },
-    DEFAULT: { bg: 'bg-gray-100 dark:bg-gray-800', border: 'border-gray-300 dark:border-gray-600', text: 'text-gray-700 dark:text-gray-300' },
+// Entity type colors - vibrant and distinct
+const ENTITY_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
+    PERSON: { bg: 'bg-blue-500/20', text: 'text-blue-400', ring: 'ring-blue-500' },
+    FIRST_NAME: { bg: 'bg-blue-500/20', text: 'text-blue-400', ring: 'ring-blue-500' },
+    LAST_NAME: { bg: 'bg-blue-500/20', text: 'text-blue-400', ring: 'ring-blue-500' },
+    EMAIL: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', ring: 'ring-emerald-500' },
+    EMAIL_ADDRESS: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', ring: 'ring-emerald-500' },
+    PHONE: { bg: 'bg-violet-500/20', text: 'text-violet-400', ring: 'ring-violet-500' },
+    PHONE_NUMBER: { bg: 'bg-violet-500/20', text: 'text-violet-400', ring: 'ring-violet-500' },
+    ADDRESS: { bg: 'bg-amber-500/20', text: 'text-amber-400', ring: 'ring-amber-500' },
+    SSN: { bg: 'bg-rose-500/20', text: 'text-rose-400', ring: 'ring-rose-500' },
+    US_SSN: { bg: 'bg-rose-500/20', text: 'text-rose-400', ring: 'ring-rose-500' },
+    CREDIT_CARD: { bg: 'bg-pink-500/20', text: 'text-pink-400', ring: 'ring-pink-500' },
+    IP_ADDRESS: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', ring: 'ring-cyan-500' },
 }
+
+const DEFAULT_COLOR = { bg: 'bg-gray-500/20', text: 'text-gray-400', ring: 'ring-gray-500' }
 
 const getEntityColor = (entityType: string) => {
-    return ENTITY_COLORS[entityType] || ENTITY_COLORS.DEFAULT
-}
-
-interface HighlightedSegment {
-    text: string
-    isDetection: boolean
-    detection?: Detection
-    start: number
-    end: number
+    return ENTITY_COLORS[entityType] || DEFAULT_COLOR
 }
 
 export function VisualDiffView({ 
@@ -65,60 +64,29 @@ export function VisualDiffView({
     redactedText, 
     detections,
     onFeedback,
+    apiKey,
     className 
 }: VisualDiffViewProps) {
-    const [viewMode, setViewMode] = useState<'side-by-side' | 'inline'>('inline')
-    const [showTooltips, setShowTooltips] = useState(true)
+    const [viewMode, setViewMode] = useState<'side-by-side' | 'inline'>('side-by-side')
     const [copiedText, setCopiedText] = useState<string | null>(null)
-    const [hoveredDetection, setHoveredDetection] = useState<Detection | null>(null)
-    const [expandedDetection, setExpandedDetection] = useState<number | null>(null)
+    const [selectedDetection, setSelectedDetection] = useState<Detection | null>(null)
+    const [showAllDetections, setShowAllDetections] = useState(true)
+    const [feedbackSent, setFeedbackSent] = useState<Record<number, 'correct' | 'incorrect'>>({})
 
     // Sort detections by start position
     const sortedDetections = useMemo(() => {
         return [...detections].sort((a, b) => a.start - b.start)
     }, [detections])
 
-    // Build highlighted segments for original text
-    const highlightedSegments = useMemo(() => {
-        const segments: HighlightedSegment[] = []
-        let currentPos = 0
-
-        for (const detection of sortedDetections) {
-            // Add text before this detection
-            if (detection.start > currentPos) {
-                segments.push({
-                    text: originalText.slice(currentPos, detection.start),
-                    isDetection: false,
-                    start: currentPos,
-                    end: detection.start
-                })
-            }
-
-            // Add the detection
-            const detectionText = detection.value || detection.text || originalText.slice(detection.start, detection.end)
-            segments.push({
-                text: detectionText,
-                isDetection: true,
-                detection,
-                start: detection.start,
-                end: detection.end
-            })
-
-            currentPos = detection.end
+    // Group detections by entity type for legend
+    const detectionsByType = useMemo(() => {
+        const groups: Record<string, Detection[]> = {}
+        for (const d of detections) {
+            if (!groups[d.entity_type]) groups[d.entity_type] = []
+            groups[d.entity_type].push(d)
         }
-
-        // Add remaining text
-        if (currentPos < originalText.length) {
-            segments.push({
-                text: originalText.slice(currentPos),
-                isDetection: false,
-                start: currentPos,
-                end: originalText.length
-            })
-        }
-
-        return segments
-    }, [originalText, sortedDetections])
+        return groups
+    }, [detections])
 
     const copyToClipboard = async (text: string, type: string) => {
         try {
@@ -130,263 +98,377 @@ export function VisualDiffView({
         }
     }
 
-    const DetectionTooltip = ({ detection, children }: { detection: Detection; children: React.ReactNode }) => {
-        const colors = getEntityColor(detection.entity_type)
-        const isExpanded = expandedDetection === detection.start
+    const handleFeedback = useCallback(async (detection: Detection, type: 'correct' | 'incorrect') => {
+        // Mark as sent
+        setFeedbackSent(prev => ({ ...prev, [detection.start]: type }))
+        
+        // Call parent callback
+        if (onFeedback) {
+            onFeedback(detection, type)
+        }
 
-        return (
-            <span className="relative inline">
-                <span
-                    className={cn(
-                        "cursor-pointer rounded px-0.5 border transition-all",
-                        colors.bg,
-                        colors.border,
-                        hoveredDetection?.start === detection.start && "ring-2 ring-primary ring-offset-1"
-                    )}
-                    onMouseEnter={() => setHoveredDetection(detection)}
-                    onMouseLeave={() => setHoveredDetection(null)}
-                    onClick={() => setExpandedDetection(isExpanded ? null : detection.start)}
-                >
-                    {children}
-                </span>
-                
-                {/* Tooltip */}
-                {showTooltips && hoveredDetection?.start === detection.start && (
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50">
-                        <span className={cn(
-                            "block px-3 py-2 rounded-lg shadow-lg border text-xs whitespace-nowrap",
-                            "bg-popover text-popover-foreground"
-                        )}>
-                            <span className="flex items-center gap-2 mb-1">
-                                <Badge variant="secondary" className={cn("text-xs", colors.text)}>
-                                    {detection.entity_type}
-                                </Badge>
-                                <span className="text-muted-foreground">
-                                    {Math.round(detection.confidence * 100)}% confidence
-                                </span>
-                            </span>
-                            <span className="block font-mono text-xs opacity-75">
-                                → {detection.masked_text || `[${detection.entity_type}]`}
-                            </span>
-                            {onFeedback && (
-                                <span className="flex gap-1 mt-2 pt-2 border-t">
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                                        onClick={(e) => { e.stopPropagation(); onFeedback(detection, 'correct') }}
-                                    >
-                                        <ThumbsUp className="w-3 h-3 mr-1" /> Correct
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-6 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        onClick={(e) => { e.stopPropagation(); onFeedback(detection, 'incorrect') }}
-                                    >
-                                        <ThumbsDown className="w-3 h-3 mr-1" /> Wrong
-                                    </Button>
-                                </span>
-                            )}
-                        </span>
-                        {/* Arrow */}
-                        <span className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-popover" />
+        // Send to API if apiKey provided
+        if (apiKey) {
+            try {
+                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+                await fetch(`${API_BASE_URL}/feedback/detection`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        original_value: detection.value || detection.text,
+                        original_type: detection.entity_type,
+                        feedback_type: type === 'correct' ? 'true_positive' : 'false_positive',
+                        confidence: detection.confidence,
+                        context: originalText.slice(Math.max(0, detection.start - 50), Math.min(originalText.length, detection.end + 50))
+                    })
+                })
+            } catch (err) {
+                console.error('Failed to send feedback:', err)
+            }
+        }
+    }, [apiKey, onFeedback, originalText])
+
+    // Build highlighted text with proper positioning
+    const renderHighlightedText = useCallback((text: string) => {
+        const elements: React.ReactNode[] = []
+        let lastEnd = 0
+
+        for (const detection of sortedDetections) {
+            // Add text before this detection
+            if (detection.start > lastEnd) {
+                elements.push(
+                    <span key={`text-${lastEnd}`} className="text-foreground/90">
+                        {text.slice(lastEnd, detection.start)}
                     </span>
-                )}
-            </span>
-        )
-    }
+                )
+            }
+
+            const colors = getEntityColor(detection.entity_type)
+            const isSelected = selectedDetection?.start === detection.start
+            const detectionText = text.slice(detection.start, detection.end)
+            const feedback = feedbackSent[detection.start]
+
+            elements.push(
+                <span
+                    key={`detection-${detection.start}`}
+                    className={cn(
+                        "relative inline cursor-pointer rounded px-1 py-0.5 transition-all",
+                        colors.bg,
+                        isSelected && `ring-2 ${colors.ring}`,
+                        feedback === 'correct' && "ring-2 ring-green-500",
+                        feedback === 'incorrect' && "ring-2 ring-red-500 line-through opacity-60"
+                    )}
+                    onClick={() => setSelectedDetection(isSelected ? null : detection)}
+                >
+                    {detectionText}
+                    {feedback && (
+                        <span className={cn(
+                            "absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center",
+                            feedback === 'correct' ? "bg-green-500" : "bg-red-500"
+                        )}>
+                            {feedback === 'correct' ? 
+                                <Check className="w-2 h-2 text-white" /> : 
+                                <X className="w-2 h-2 text-white" />
+                            }
+                        </span>
+                    )}
+                </span>
+            )
+
+            lastEnd = detection.end
+        }
+
+        // Add remaining text
+        if (lastEnd < text.length) {
+            elements.push(
+                <span key={`text-${lastEnd}`} className="text-foreground/90">
+                    {text.slice(lastEnd)}
+                </span>
+            )
+        }
+
+        return elements
+    }, [sortedDetections, selectedDetection, feedbackSent])
 
     return (
         <div className={cn("space-y-4", className)}>
-            {/* Controls */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            {/* Header Controls */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
                     <Button
-                        variant={viewMode === 'inline' ? 'default' : 'outline'}
+                        variant={viewMode === 'side-by-side' ? 'default' : 'ghost'}
                         size="sm"
-                        onClick={() => setViewMode('inline')}
-                    >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Inline
-                    </Button>
-                    <Button
-                        variant={viewMode === 'side-by-side' ? 'default' : 'outline'}
-                        size="sm"
+                        className="h-8"
                         onClick={() => setViewMode('side-by-side')}
                     >
-                        <ArrowLeftRight className="w-4 h-4 mr-1" />
+                        <ArrowLeftRight className="w-4 h-4 mr-2" />
                         Side by Side
                     </Button>
-                </div>
-                <div className="flex items-center gap-2">
                     <Button
-                        variant="ghost"
+                        variant={viewMode === 'inline' ? 'default' : 'ghost'}
                         size="sm"
-                        onClick={() => setShowTooltips(!showTooltips)}
+                        className="h-8"
+                        onClick={() => setViewMode('inline')}
                     >
-                        {showTooltips ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        <span className="ml-1 text-xs">{showTooltips ? 'Hide' : 'Show'} Tooltips</span>
+                        <Highlighter className="w-4 h-4 mr-2" />
+                        Inline
                     </Button>
                 </div>
-            </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-2 text-xs">
-                {Object.entries(ENTITY_COLORS).filter(([key]) => key !== 'DEFAULT').map(([type, colors]) => {
-                    const count = detections.filter(d => d.entity_type === type).length
-                    if (count === 0) return null
-                    return (
-                        <span key={type} className={cn("px-2 py-1 rounded border", colors.bg, colors.border, colors.text)}>
-                            {type} ({count})
-                        </span>
-                    )
-                })}
-            </div>
-
-            {/* Content */}
-            {viewMode === 'inline' ? (
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm flex items-center justify-between">
-                            <span>Highlighted View</span>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyToClipboard(redactedText, 'redacted')}
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-2">
+                    {Object.entries(detectionsByType).map(([type, items]) => {
+                        const colors = getEntityColor(type)
+                        return (
+                            <Badge 
+                                key={type} 
+                                variant="secondary"
+                                className={cn("text-xs font-medium", colors.bg, colors.text)}
                             >
-                                {copiedText === 'redacted' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                <span className="ml-1 text-xs">Copy Redacted</span>
-                            </Button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap font-mono">
-                            {highlightedSegments.map((segment, idx) => (
-                                segment.isDetection && segment.detection ? (
-                                    <DetectionTooltip key={idx} detection={segment.detection}>
-                                        {segment.text}
-                                    </DetectionTooltip>
-                                ) : (
-                                    <span key={idx}>{segment.text}</span>
-                                )
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="grid md:grid-cols-2 gap-4">
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center justify-between">
-                                <span className="flex items-center gap-2">
+                                {type} ({items.length})
+                            </Badge>
+                        )
+                    })}
+                </div>
+            </div>
+
+            {/* Main Content */}
+            {viewMode === 'side-by-side' ? (
+                <div className="grid lg:grid-cols-2 gap-4">
+                    {/* Original */}
+                    <Card className="overflow-hidden">
+                        <CardHeader className="py-3 px-4 bg-yellow-500/10 border-b">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-yellow-500" />
                                     Original
-                                </span>
+                                </CardTitle>
                                 <Button
                                     variant="ghost"
                                     size="sm"
+                                    className="h-7 text-xs"
                                     onClick={() => copyToClipboard(originalText, 'original')}
                                 >
-                                    {copiedText === 'original' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                    {copiedText === 'original' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 </Button>
-                            </CardTitle>
+                            </div>
                         </CardHeader>
-                        <CardContent>
-                            <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap font-mono min-h-[200px]">
-                                {highlightedSegments.map((segment, idx) => (
-                                    segment.isDetection && segment.detection ? (
-                                        <DetectionTooltip key={idx} detection={segment.detection}>
-                                            {segment.text}
-                                        </DetectionTooltip>
-                                    ) : (
-                                        <span key={idx}>{segment.text}</span>
-                                    )
-                                ))}
+                        <CardContent className="p-4">
+                            <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                {renderHighlightedText(originalText)}
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center justify-between">
-                                <span className="flex items-center gap-2">
+                    {/* Redacted */}
+                    <Card className="overflow-hidden">
+                        <CardHeader className="py-3 px-4 bg-green-500/10 border-b">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-green-500" />
                                     Redacted
-                                </span>
+                                </CardTitle>
                                 <Button
                                     variant="ghost"
                                     size="sm"
+                                    className="h-7 text-xs"
                                     onClick={() => copyToClipboard(redactedText, 'redacted')}
                                 >
-                                    {copiedText === 'redacted' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                    {copiedText === 'redacted' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 </Button>
-                            </CardTitle>
+                            </div>
                         </CardHeader>
-                        <CardContent>
-                            <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-wrap font-mono min-h-[200px]">
+                        <CardContent className="p-4">
+                            <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
                                 {redactedText}
                             </div>
                         </CardContent>
                     </Card>
                 </div>
+            ) : (
+                <Card className="overflow-hidden">
+                    <CardHeader className="py-3 px-4 bg-primary/5 border-b">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                <Sparkles className="w-4 h-4" />
+                                Highlighted View
+                            </CardTitle>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => copyToClipboard(redactedText, 'redacted')}
+                            >
+                                {copiedText === 'redacted' ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                                Copy Redacted
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            {renderHighlightedText(originalText)}
+                        </div>
+                    </CardContent>
+                </Card>
             )}
 
-            {/* Detection Summary */}
-            {detections.length > 0 && (
+            {/* Selected Detection Detail Panel */}
+            {selectedDetection && (
+                <Card className="border-2 border-primary/50 overflow-hidden animate-in slide-in-from-top-2">
+                    <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <Badge className={cn(
+                                        "text-sm font-semibold",
+                                        getEntityColor(selectedDetection.entity_type).bg,
+                                        getEntityColor(selectedDetection.entity_type).text
+                                    )}>
+                                        {selectedDetection.entity_type}
+                                    </Badge>
+                                    <span className="text-sm text-muted-foreground">
+                                        {Math.round(selectedDetection.confidence * 100)}% confidence
+                                    </span>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Detected Value:</div>
+                                    <code className="block p-2 bg-muted rounded text-sm font-mono">
+                                        {selectedDetection.value || selectedDetection.text}
+                                    </code>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Will be replaced with:</div>
+                                    <code className="block p-2 bg-muted rounded text-sm font-mono text-primary">
+                                        {selectedDetection.masked_text || `[${selectedDetection.entity_type}]`}
+                                    </code>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setSelectedDetection(null)}
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                                
+                                <div className="flex flex-col gap-1 mt-2">
+                                    <span className="text-xs text-muted-foreground text-center">Feedback</span>
+                                    <Button
+                                        variant={feedbackSent[selectedDetection.start] === 'correct' ? 'default' : 'outline'}
+                                        size="sm"
+                                        className={cn(
+                                            "h-9 gap-2",
+                                            feedbackSent[selectedDetection.start] === 'correct' && "bg-green-600 hover:bg-green-700"
+                                        )}
+                                        onClick={() => handleFeedback(selectedDetection, 'correct')}
+                                        disabled={!!feedbackSent[selectedDetection.start]}
+                                    >
+                                        <ThumbsUp className="w-4 h-4" />
+                                        Correct
+                                    </Button>
+                                    <Button
+                                        variant={feedbackSent[selectedDetection.start] === 'incorrect' ? 'default' : 'outline'}
+                                        size="sm"
+                                        className={cn(
+                                            "h-9 gap-2",
+                                            feedbackSent[selectedDetection.start] === 'incorrect' && "bg-red-600 hover:bg-red-700"
+                                        )}
+                                        onClick={() => handleFeedback(selectedDetection, 'incorrect')}
+                                        disabled={!!feedbackSent[selectedDetection.start]}
+                                    >
+                                        <ThumbsDown className="w-4 h-4" />
+                                        Wrong
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Detection List */}
+            {sortedDetections.length > 0 && (
                 <Card>
-                    <CardHeader className="pb-3 cursor-pointer" onClick={() => setExpandedDetection(expandedDetection === -1 ? null : -1)}>
-                        <CardTitle className="text-sm flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                                <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                                {detections.length} PII Detection{detections.length > 1 ? 's' : ''}
-                            </span>
-                            {expandedDetection === -1 ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                        </CardTitle>
+                    <CardHeader 
+                        className="py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setShowAllDetections(!showAllDetections)}
+                    >
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-medium">
+                                {sortedDetections.length} Detection{sortedDetections.length > 1 ? 's' : ''}
+                            </CardTitle>
+                            {showAllDetections ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
                     </CardHeader>
-                    {expandedDetection === -1 && (
-                        <CardContent className="pt-0">
-                            <div className="grid gap-2 max-h-[300px] overflow-y-auto">
+                    
+                    {showAllDetections && (
+                        <CardContent className="p-0">
+                            <div className="divide-y">
                                 {sortedDetections.map((d, idx) => {
                                     const colors = getEntityColor(d.entity_type)
+                                    const isSelected = selectedDetection?.start === d.start
+                                    const feedback = feedbackSent[d.start]
+                                    
                                     return (
                                         <div 
-                                            key={idx} 
+                                            key={idx}
                                             className={cn(
-                                                "flex items-center justify-between p-2 rounded border text-sm",
-                                                colors.bg,
-                                                colors.border
+                                                "flex items-center justify-between p-3 hover:bg-muted/50 cursor-pointer transition-colors",
+                                                isSelected && "bg-primary/5"
                                             )}
-                                            onMouseEnter={() => setHoveredDetection(d)}
-                                            onMouseLeave={() => setHoveredDetection(null)}
+                                            onClick={() => setSelectedDetection(isSelected ? null : d)}
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="secondary" className={colors.text}>
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <Badge 
+                                                    variant="secondary"
+                                                    className={cn("shrink-0 text-xs", colors.bg, colors.text)}
+                                                >
                                                     {d.entity_type}
                                                 </Badge>
-                                                <code className="text-xs font-mono truncate max-w-[200px]">
+                                                <code className="text-sm font-mono truncate text-muted-foreground">
                                                     {d.value || d.text}
                                                 </code>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-muted-foreground">
+                                            
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className="text-xs text-muted-foreground tabular-nums">
                                                     {Math.round(d.confidence * 100)}%
                                                 </span>
-                                                {onFeedback && (
-                                                    <div className="flex gap-1">
+                                                
+                                                {feedback ? (
+                                                    <div className={cn(
+                                                        "w-6 h-6 rounded-full flex items-center justify-center",
+                                                        feedback === 'correct' ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                                                    )}>
+                                                        {feedback === 'correct' ? 
+                                                            <ThumbsUp className="w-3 h-3" /> : 
+                                                            <ThumbsDown className="w-3 h-3" />
+                                                        }
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                                         <Button
-                                                            size="sm"
                                                             variant="ghost"
-                                                            className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
-                                                            onClick={() => onFeedback(d, 'correct')}
+                                                            size="sm"
+                                                            className="h-6 w-6 p-0 hover:bg-green-500/20 hover:text-green-500"
+                                                            onClick={() => handleFeedback(d, 'correct')}
                                                         >
                                                             <ThumbsUp className="w-3 h-3" />
                                                         </Button>
                                                         <Button
-                                                            size="sm"
                                                             variant="ghost"
-                                                            className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
-                                                            onClick={() => onFeedback(d, 'incorrect')}
+                                                            size="sm"
+                                                            className="h-6 w-6 p-0 hover:bg-red-500/20 hover:text-red-500"
+                                                            onClick={() => handleFeedback(d, 'incorrect')}
                                                         >
                                                             <ThumbsDown className="w-3 h-3" />
                                                         </Button>
@@ -404,4 +486,3 @@ export function VisualDiffView({
         </div>
     )
 }
-

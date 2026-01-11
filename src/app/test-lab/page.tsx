@@ -419,10 +419,11 @@ export default function TestLabPage() {
             </div>
 
             {/* Tab Content */}
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
                 {/* Text Tab */}
                 {activeTab === 'text' && (
                     <>
+                        {/* Input Section */}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Input Text</CardTitle>
@@ -433,7 +434,7 @@ export default function TestLabPage() {
                                     placeholder="Enter text containing PII..."
                                     value={inputText}
                                     onChange={(e) => setInputText(e.target.value)}
-                                    className="min-h-[200px] font-mono text-sm"
+                                    className="min-h-[150px] font-mono text-sm"
                                 />
                                 <div className="flex gap-2">
                                     <Button onClick={handleTextRedact} disabled={textLoading} className="flex-1">
@@ -450,7 +451,8 @@ export default function TestLabPage() {
                             </CardContent>
                         </Card>
 
-                        <div className="space-y-6">
+                        {/* Results Section */}
+                        <div className="space-y-4">
                             {textError && (
                                 <Card className="border-destructive/50">
                                     <CardContent className="pt-6">
@@ -491,9 +493,9 @@ export default function TestLabPage() {
                                             ...d,
                                             value: d.text || d.value
                                         }))}
+                                        apiKey={apiKey}
                                         onFeedback={(detection, type) => {
                                             console.log('Feedback:', detection, type)
-                                            // TODO: Send feedback to API
                                         }}
                                     />
 
@@ -528,7 +530,7 @@ export default function TestLabPage() {
 
                 {/* Document & Image Tabs */}
                 {(activeTab === 'document' || activeTab === 'image') && (
-                    <>
+                    <div className="grid lg:grid-cols-2 gap-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>
@@ -729,7 +731,7 @@ export default function TestLabPage() {
                                 </Card>
                             )}
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
         </div>
