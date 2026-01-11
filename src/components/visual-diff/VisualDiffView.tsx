@@ -73,10 +73,35 @@ export function VisualDiffView({
     const [showAllDetections, setShowAllDetections] = useState(true)
     const [feedbackSent, setFeedbackSent] = useState<Record<number, 'correct' | 'incorrect'>>({})
 
-    // Sort detections by start position
+    // Recalculate positions based on actual text content
+    // API positions may not match displayed text due to formatting differences
     const sortedDetections = useMemo(() => {
-        return [...detections].sort((a, b) => a.start - b.start)
-    }, [detections])
+        const recalculated = detections.map(d => {
+            const searchValue = d.value || d.text || ''
+            if (!searchValue) return d
+            
+            // Find the actual position in the original text
+            const actualStart = originalText.indexOf(searchValue)
+            if (actualStart !== -1) {
+                return {
+                    ...d,
+                    start: actualStart,
+                    end: actualStart + searchValue.length
+                }
+            }
+            return d
+        })
+        
+        // Remove duplicates (same start position)
+        const seen = new Set<number>()
+        const unique = recalculated.filter(d => {
+            if (seen.has(d.start)) return false
+            seen.add(d.start)
+            return true
+        })
+        
+        return unique.sort((a, b) => a.start - b.start)
+    }, [detections, originalText])
 
     // Group detections by entity type for legend
     const detectionsByType = useMemo(() => {
@@ -136,7 +161,18 @@ export function VisualDiffView({
         const elements: React.ReactNode[] = []
         let lastEnd = 0
 
-        for (const detection of sortedDetections) {
+        // Filter out any detections with invalid positions
+        const validDetections = sortedDetections.filter(d => 
+            d.start >= 0 && 
+            d.end <= text.length && 
+            d.start < d.end &&
+            d.start >= lastEnd // Skip overlapping detections
+        )
+
+        for (const detection of validDetections) {
+            // Skip if this detection starts before our current position (overlapping)
+            if (detection.start < lastEnd) continue
+
             // Add text before this detection
             if (detection.start > lastEnd) {
                 elements.push(
@@ -151,34 +187,38 @@ export function VisualDiffView({
             const detectionText = text.slice(detection.start, detection.end)
             const feedback = feedbackSent[detection.start]
 
-            elements.push(
-                <span
-                    key={`detection-${detection.start}`}
-                    className={cn(
-                        "relative inline cursor-pointer rounded px-1 py-0.5 transition-all",
-                        colors.bg,
-                        isSelected && `ring-2 ${colors.ring}`,
-                        feedback === 'correct' && "ring-2 ring-green-500",
-                        feedback === 'incorrect' && "ring-2 ring-red-500 line-through opacity-60"
-                    )}
-                    onClick={() => setSelectedDetection(isSelected ? null : detection)}
-                >
-                    {detectionText}
-                    {feedback && (
-                        <span className={cn(
-                            "absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center",
-                            feedback === 'correct' ? "bg-green-500" : "bg-red-500"
-                        )}>
-                            {feedback === 'correct' ? 
-                                <Check className="w-2 h-2 text-white" /> : 
-                                <X className="w-2 h-2 text-white" />
-                            }
-                        </span>
-                    )}
-                </span>
-            )
+            // Only render if we have actual text to highlight
+            if (detectionText) {
+                elements.push(
+                    <span
+                        key={`detection-${detection.start}`}
+                        className={cn(
+                            "relative inline-block cursor-pointer rounded px-0.5 transition-all border-b-2",
+                            colors.bg,
+                            `border-current ${colors.text}`,
+                            isSelected && `ring-2 ${colors.ring}`,
+                            feedback === 'correct' && "ring-2 ring-green-500",
+                            feedback === 'incorrect' && "ring-2 ring-red-500 line-through opacity-60"
+                        )}
+                        onClick={() => setSelectedDetection(isSelected ? null : detection)}
+                    >
+                        {detectionText}
+                        {feedback && (
+                            <span className={cn(
+                                "absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center",
+                                feedback === 'correct' ? "bg-green-500" : "bg-red-500"
+                            )}>
+                                {feedback === 'correct' ? 
+                                    <Check className="w-2 h-2 text-white" /> : 
+                                    <X className="w-2 h-2 text-white" />
+                                }
+                            </span>
+                        )}
+                    </span>
+                )
 
-            lastEnd = detection.end
+                lastEnd = detection.end
+            }
         }
 
         // Add remaining text
