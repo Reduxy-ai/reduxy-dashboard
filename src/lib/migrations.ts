@@ -258,6 +258,84 @@ const migrations: Migration[] = [
       
       DROP TABLE IF EXISTS policies CASCADE;
     `
+    },
+    {
+        id: '005',
+        name: 'add_detection_feedback',
+        timestamp: '2026-01-10T12:00:00Z',
+        up: `
+      -- Create detection feedback table for collecting user corrections
+      CREATE TABLE IF NOT EXISTS detection_feedback (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        
+        -- Detection details
+        detection_id VARCHAR(255),
+        original_text TEXT NOT NULL,
+        detected_value TEXT NOT NULL,
+        detected_entity_type VARCHAR(100) NOT NULL,
+        original_confidence DECIMAL(5,4),
+        
+        -- User feedback
+        feedback_type VARCHAR(50) NOT NULL, -- 'correct', 'wrong_type', 'not_pii', 'missed_pii'
+        correct_entity_type VARCHAR(100), -- If wrong_type, what should it be
+        correct_value TEXT, -- If partial detection, what's the correct value
+        
+        -- Context
+        context_before TEXT,
+        context_after TEXT,
+        document_type VARCHAR(100), -- 'text', 'pdf', 'image', etc.
+        
+        -- Metadata
+        source VARCHAR(100), -- 'dashboard', 'api', 'test_lab'
+        metadata JSONB DEFAULT '{}',
+        
+        -- Status for training pipeline
+        status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'reviewed', 'applied', 'rejected'
+        reviewed_at TIMESTAMP WITH TIME ZONE,
+        reviewed_by UUID REFERENCES users(id),
+        
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      -- Indexes for efficient querying
+      CREATE INDEX IF NOT EXISTS idx_feedback_user_id ON detection_feedback(user_id);
+      CREATE INDEX IF NOT EXISTS idx_feedback_entity_type ON detection_feedback(detected_entity_type);
+      CREATE INDEX IF NOT EXISTS idx_feedback_type ON detection_feedback(feedback_type);
+      CREATE INDEX IF NOT EXISTS idx_feedback_status ON detection_feedback(status);
+      CREATE INDEX IF NOT EXISTS idx_feedback_created ON detection_feedback(created_at DESC);
+      
+      -- Aggregated feedback stats table for quick lookups
+      CREATE TABLE IF NOT EXISTS feedback_stats (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_type VARCHAR(100) NOT NULL,
+        period_start DATE NOT NULL,
+        period_end DATE NOT NULL,
+        
+        total_feedback INT DEFAULT 0,
+        correct_count INT DEFAULT 0,
+        wrong_type_count INT DEFAULT 0,
+        not_pii_count INT DEFAULT 0,
+        missed_pii_count INT DEFAULT 0,
+        
+        accuracy_rate DECIMAL(5,4),
+        
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        
+        UNIQUE(entity_type, period_start, period_end)
+      );
+    `,
+        down: `
+      DROP TABLE IF EXISTS feedback_stats CASCADE;
+      DROP INDEX IF EXISTS idx_feedback_created;
+      DROP INDEX IF EXISTS idx_feedback_status;
+      DROP INDEX IF EXISTS idx_feedback_type;
+      DROP INDEX IF EXISTS idx_feedback_entity_type;
+      DROP INDEX IF EXISTS idx_feedback_user_id;
+      DROP TABLE IF EXISTS detection_feedback CASCADE;
+    `
     }
 ]
 

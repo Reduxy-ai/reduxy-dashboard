@@ -32,8 +32,10 @@ import {
     FileKey,
     Type,
     File,
-    X
+    X,
+    MessageSquareWarning
 } from "lucide-react"
+import { FeedbackWidget, MissedPIIReporter } from "@/components/feedback"
 
 interface PIIDetection {
     entity_type: string
@@ -521,7 +523,7 @@ export default function TestLabPage() {
                                             </CardHeader>
                                             {showDetections && (
                                                 <CardContent className="pt-0">
-                                                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
                                                         {textResponse.pii_detections.map((d, i) => (
                                                             <div key={i} className="border rounded p-2 text-sm">
                                                                 <div className="flex items-center justify-between">
@@ -529,8 +531,27 @@ export default function TestLabPage() {
                                                                     <span className="text-muted-foreground text-xs">{Math.round(d.confidence * 100)}%</span>
                                                                 </div>
                                                                 <code className="text-xs bg-muted px-1 rounded mt-1 block truncate">{d.text || d.value}</code>
+                                                                <FeedbackWidget
+                                                                    detection={{
+                                                                        entity_type: d.entity_type,
+                                                                        value: d.text || d.value || '',
+                                                                        confidence: d.confidence,
+                                                                        start: d.start,
+                                                                        end: d.end
+                                                                    }}
+                                                                    originalText={inputText}
+                                                                    documentType="text"
+                                                                    apiKey={apiKey}
+                                                                />
                                                             </div>
                                                         ))}
+                                                    </div>
+                                                    <div className="mt-4 pt-4 border-t">
+                                                        <MissedPIIReporter
+                                                            originalText={inputText}
+                                                            documentType="text"
+                                                            apiKey={apiKey}
+                                                        />
                                                     </div>
                                                 </CardContent>
                                             )}
@@ -706,7 +727,7 @@ export default function TestLabPage() {
                                         
                                         <div className="border-t pt-3">
                                             <div className="text-sm font-medium mb-2">Detections</div>
-                                            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                            <div className="space-y-2 max-h-[400px] overflow-y-auto">
                                                 {fileResponse.detections.map((d, i) => (
                                                     <div key={i} className="border rounded p-2 text-sm">
                                                         <div className="flex items-center justify-between">
@@ -714,8 +735,27 @@ export default function TestLabPage() {
                                                             <span className="text-muted-foreground text-xs">{Math.round(d.confidence * 100)}%</span>
                                                         </div>
                                                         <code className="text-xs bg-muted px-1 rounded mt-1 block truncate">{d.value}</code>
+                                                        <FeedbackWidget
+                                                            detection={{
+                                                                entity_type: d.entity_type,
+                                                                value: d.value || '',
+                                                                confidence: d.confidence,
+                                                                start: d.start,
+                                                                end: d.end
+                                                            }}
+                                                            originalText={fileResponse.extracted_text || ''}
+                                                            documentType={activeTab}
+                                                            apiKey={apiKey}
+                                                        />
                                                     </div>
                                                 ))}
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t">
+                                                <MissedPIIReporter
+                                                    originalText={fileResponse.extracted_text || ''}
+                                                    documentType={activeTab}
+                                                    apiKey={apiKey}
+                                                />
                                             </div>
                                         </div>
                                     </CardContent>
