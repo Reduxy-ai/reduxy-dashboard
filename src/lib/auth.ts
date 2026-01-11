@@ -59,4 +59,33 @@ export function formatPlanName(plan: string): string {
 
 export function isTokenExpired(exp: number): boolean {
     return Date.now() >= exp * 1000
+}
+
+/**
+ * Get auth token from localStorage (client-side only)
+ * Returns null if not in browser or token not found
+ */
+export function getAuthToken(): string | null {
+    if (typeof window === 'undefined') {
+        return null
+    }
+    return localStorage.getItem('reduxy_auth_token')
+}
+
+/**
+ * Set auth token in localStorage (client-side only)
+ */
+export function setAuthToken(token: string): void {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('reduxy_auth_token', token)
+    }
+}
+
+/**
+ * Remove auth token from localStorage (client-side only)
+ */
+export function removeAuthToken(): void {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('reduxy_auth_token')
+    }
 } 
