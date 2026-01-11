@@ -36,6 +36,7 @@ import {
     MessageSquareWarning
 } from "lucide-react"
 import { FeedbackWidget, MissedPIIReporter } from "@/components/feedback"
+import { VisualDiffView } from "@/components/visual-diff"
 
 interface PIIDetection {
     entity_type: string
@@ -463,98 +464,49 @@ export default function TestLabPage() {
 
                             {textResponse && (
                                 <>
+                                    {/* Quick Stats */}
                                     <Card>
-                                        <CardHeader className="pb-3">
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Zap className="h-5 w-5" />
-                                                Results
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <div className="grid grid-cols-2 gap-3 text-sm">
-                                                <div>
-                                                    <div className="text-muted-foreground">Processing Time</div>
-                                                    <div className="font-medium">{textResponse.processing_time_ms}ms</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-muted-foreground">PII Found</div>
+                                        <CardContent className="pt-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Zap className="h-4 w-4 text-muted-foreground" />
+                                                        <span className="text-sm text-muted-foreground">
+                                                            {textResponse.processing_time_ms}ms
+                                                        </span>
+                                                    </div>
                                                     <Badge variant={textResponse.pii_detections.length > 0 ? 'destructive' : 'secondary'}>
-                                                        {textResponse.pii_detections.length}
+                                                        {textResponse.pii_detections.length} PII found
                                                     </Badge>
                                                 </div>
                                             </div>
                                         </CardContent>
                                     </Card>
 
-                                    <Card>
-                                        <CardHeader className="pb-3">
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Shield className="h-5 w-5" />
-                                                Redacted Text
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="relative">
-                                                <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap overflow-x-auto">
-                                                    {textResponse.redacted_request.messages[0].content}
-                                                </pre>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="absolute top-2 right-2"
-                                                    onClick={() => copyToClipboard(textResponse.redacted_request.messages[0].content, 'redacted')}
-                                                >
-                                                    {copiedText === 'redacted' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                                </Button>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                    {/* Visual Diff View */}
+                                    <VisualDiffView
+                                        originalText={inputText}
+                                        redactedText={textResponse.redacted_request.messages[0].content}
+                                        detections={textResponse.pii_detections.map(d => ({
+                                            ...d,
+                                            value: d.text || d.value
+                                        }))}
+                                        onFeedback={(detection, type) => {
+                                            console.log('Feedback:', detection, type)
+                                            // TODO: Send feedback to API
+                                        }}
+                                    />
 
+                                    {/* Missed PII Reporter */}
                                     {textResponse.pii_detections.length > 0 && (
                                         <Card>
-                                            <CardHeader
-                                                className="cursor-pointer hover:bg-muted/50 transition-colors pb-3"
-                                                onClick={() => setShowDetections(!showDetections)}
-                                            >
-                                                <CardTitle className="flex items-center justify-between text-base">
-                                                    <span>Detections ({textResponse.pii_detections.length})</span>
-                                                    {showDetections ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                                </CardTitle>
-                                            </CardHeader>
-                                            {showDetections && (
-                                                <CardContent className="pt-0">
-                                                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                                                        {textResponse.pii_detections.map((d, i) => (
-                                                            <div key={i} className="border rounded p-2 text-sm">
-                                                                <div className="flex items-center justify-between">
-                                                                    <Badge variant="secondary">{d.entity_type}</Badge>
-                                                                    <span className="text-muted-foreground text-xs">{Math.round(d.confidence * 100)}%</span>
-                                                                </div>
-                                                                <code className="text-xs bg-muted px-1 rounded mt-1 block truncate">{d.text || d.value}</code>
-                                                                <FeedbackWidget
-                                                                    detection={{
-                                                                        entity_type: d.entity_type,
-                                                                        value: d.text || d.value || '',
-                                                                        confidence: d.confidence,
-                                                                        start: d.start,
-                                                                        end: d.end
-                                                                    }}
-                                                                    originalText={inputText}
-                                                                    documentType="text"
-                                                                    apiKey={apiKey}
-                                                                />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="mt-4 pt-4 border-t">
-                                                        <MissedPIIReporter
-                                                            originalText={inputText}
-                                                            documentType="text"
-                                                            apiKey={apiKey}
-                                                        />
-                                                    </div>
-                                                </CardContent>
-                                            )}
+                                            <CardContent className="pt-6">
+                                                <MissedPIIReporter
+                                                    originalText={inputText}
+                                                    documentType="text"
+                                                    apiKey={apiKey}
+                                                />
+                                            </CardContent>
                                         </Card>
                                     )}
                                 </>

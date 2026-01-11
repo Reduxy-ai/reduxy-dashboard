@@ -1,0 +1,2 @@
+export { VisualDiffView } from './VisualDiffView'
+
