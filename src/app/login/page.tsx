@@ -60,10 +60,30 @@ export default function LoginPage() {
 
             const response = await login(result.data)
             if (response.success) {
-                // Redirect to original URL if provided (for SSO from website)
+                // Generate authorization code for SSO if redirect URL is provided
                 if (redirectUrl) {
-                    console.log('Redirecting to:', redirectUrl)
-                    window.location.href = redirectUrl
+                    try {
+                        // Generate authorization code
+                        const codeResponse = await fetch('/api/auth/generate-code', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ redirect_uri: redirectUrl })
+                        })
+
+                        if (codeResponse.ok) {
+                            const { code } = await codeResponse.json()
+                            // Append code to redirect URL
+                            const separator = redirectUrl.includes('?') ? '&' : '?'
+                            const redirectWithCode = `${redirectUrl}${separator}code=${code}`
+                            console.log('Redirecting with auth code to:', redirectWithCode)
+                            window.location.href = redirectWithCode
+                        } else {
+                            throw new Error('Failed to generate authorization code')
+                        }
+                    } catch (error) {
+                        console.error('SSO redirect failed:', error)
+                        setErrors({ general: 'Login succeeded but SSO redirect failed' })
+                    }
                 } else {
                     console.log('No redirect URL, going to dashboard home')
                     router.push("/")

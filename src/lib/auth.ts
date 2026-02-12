@@ -106,4 +106,20 @@ export function removeAuthToken(): void {
     if (typeof window !== 'undefined') {
         localStorage.removeItem('reduxy_auth_token')
     }
+}
+
+/**
+ * Generate a cryptographically secure authorization code
+ * Format: 32-byte random string (64 hex characters)
+ */
+export function generateAuthorizationCode(): string {
+    const array = new Uint8Array(32)
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        crypto.getRandomValues(array)
+    } else {
+        // Fallback for Node.js
+        const nodeCrypto = require('crypto')
+        nodeCrypto.randomFillSync(array)
+    }
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 } 

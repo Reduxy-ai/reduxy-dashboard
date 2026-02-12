@@ -430,6 +430,45 @@ const migrations: Migration[] = [
         DROP COLUMN IF EXISTS credits_total,
         DROP COLUMN IF EXISTS credits_remaining;
     `
+    },
+    {
+    id: '007',
+    name: 'add_authorization_codes_for_sso',
+    timestamp: '2026-02-12T18:00:00.000Z',
+    up: `
+      -- Authorization codes table for OAuth-style SSO flow
+      CREATE TABLE IF NOT EXISTS authorization_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(64) UNIQUE NOT NULL,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        redirect_uri TEXT NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        used BOOLEAN DEFAULT false,
+        used_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      -- Index for quick code lookups
+      CREATE INDEX IF NOT EXISTS idx_auth_codes_code ON authorization_codes(code) WHERE NOT used;
+      CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON authorization_codes(expires_at) WHERE NOT used;
+      CREATE INDEX IF NOT EXISTS idx_auth_codes_user_id ON authorization_codes(user_id);
+
+      -- Auto-delete expired codes (cleanup function)
+      CREATE OR REPLACE FUNCTION cleanup_expired_auth_codes()
+      RETURNS void AS $$
+      BEGIN
+        DELETE FROM authorization_codes
+        WHERE expires_at < NOW() - INTERVAL '1 hour';
+      END;
+      $$ LANGUAGE plpgsql;
+    `,
+    down: `
+      DROP FUNCTION IF EXISTS cleanup_expired_auth_codes;
+      DROP INDEX IF EXISTS idx_auth_codes_user_id;
+      DROP INDEX IF EXISTS idx_auth_codes_expires;
+      DROP INDEX IF EXISTS idx_auth_codes_code;
+      DROP TABLE IF EXISTS authorization_codes CASCADE;
+    `
     }
 ]
 
