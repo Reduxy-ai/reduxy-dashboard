@@ -155,6 +155,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const logout = () => {
         removeStoredToken()
         dispatch({ type: 'LOGOUT' })
+
+        // Redirect to logout page to handle SSO logout with website
+        const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://www.reduxy.ai'
+        window.location.href = `/logout?redirect=${encodeURIComponent(websiteUrl)}`
     }
 
     const refreshUser = async () => {

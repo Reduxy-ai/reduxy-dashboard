@@ -17,8 +17,10 @@ export default function LogoutPage() {
             console.log('Dashboard session cleared')
 
             if (redirect) {
-                // Redirect back to website
-                window.location.href = redirect
+                // Redirect back to website with logout flag
+                const redirectUrl = new URL(redirect)
+                redirectUrl.searchParams.set('logout', 'true')
+                window.location.href = redirectUrl.toString()
             } else {
                 // Stay on dashboard, go to login
                 router.push('/login')
@@ -27,7 +29,9 @@ export default function LogoutPage() {
             console.error('Logout failed:', error)
             // Redirect anyway
             if (redirect) {
-                window.location.href = redirect
+                const redirectUrl = new URL(redirect)
+                redirectUrl.searchParams.set('logout', 'true')
+                window.location.href = redirectUrl.toString()
             } else {
                 router.push('/login')
             }
