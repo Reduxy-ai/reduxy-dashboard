@@ -336,6 +336,100 @@ const migrations: Migration[] = [
       DROP INDEX IF EXISTS idx_feedback_user_id;
       DROP TABLE IF EXISTS detection_feedback CASCADE;
     `
+    },
+    {
+        id: '006',
+        name: 'add_credits_system',
+        timestamp: '2026-02-12T12:00:00Z',
+        up: `
+      -- Add credits columns to existing billing_info table
+      ALTER TABLE billing_info
+        ADD COLUMN IF NOT EXISTS credits_remaining INTEGER DEFAULT 10,
+        ADD COLUMN IF NOT EXISTS credits_total INTEGER DEFAULT 10,
+        ADD COLUMN IF NOT EXISTS credits_reset_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '1 month';
+
+      -- Set initial credits based on plan
+      UPDATE billing_info SET
+        credits_remaining = CASE plan
+          WHEN 'free' THEN 10
+          WHEN 'starter' THEN 100
+          WHEN 'pro' THEN 500
+          WHEN 'enterprise' THEN 999999
+          ELSE 10
+        END,
+        credits_total = CASE plan
+          WHEN 'free' THEN 10
+          WHEN 'starter' THEN 100
+          WHEN 'pro' THEN 500
+          WHEN 'enterprise' THEN 999999
+          ELSE 10
+        END
+      WHERE credits_remaining IS NULL;
+
+      -- Create credit transactions table for history
+      CREATE TABLE IF NOT EXISTS credit_transactions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        operation_type VARCHAR(50) NOT NULL,
+        credits_used INTEGER NOT NULL,
+        credits_remaining INTEGER NOT NULL,
+        request_id VARCHAR(255),
+        endpoint VARCHAR(255),
+        file_size_bytes INTEGER,
+        processing_time_ms FLOAT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      -- Add credits_used to existing usage_tracking
+      ALTER TABLE usage_tracking
+        ADD COLUMN IF NOT EXISTS credits_used INTEGER DEFAULT 0;
+
+      -- Indexes for performance
+      CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_id ON credit_transactions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_credit_transactions_created_at ON credit_transactions(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_billing_info_credits ON billing_info(credits_remaining) WHERE credits_remaining < 10;
+
+      -- Function to auto-reset credits monthly
+      CREATE OR REPLACE FUNCTION reset_monthly_credits()
+      RETURNS void AS $$
+      BEGIN
+        UPDATE billing_info
+        SET
+          credits_remaining = credits_total,
+          credits_reset_at = NOW() + INTERVAL '1 month'
+        WHERE credits_reset_at < NOW()
+          AND plan != 'enterprise';
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- Create guest rate limit table (IP-based for non-logged users)
+      CREATE TABLE IF NOT EXISTS guest_rate_limits (
+        ip_address INET PRIMARY KEY,
+        operation_count INTEGER DEFAULT 0,
+        window_start TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_guest_rate_limits_window ON guest_rate_limits(window_start);
+    `,
+        down: `
+      DROP INDEX IF EXISTS idx_guest_rate_limits_window;
+      DROP TABLE IF EXISTS guest_rate_limits CASCADE;
+
+      DROP FUNCTION IF EXISTS reset_monthly_credits();
+
+      DROP INDEX IF EXISTS idx_billing_info_credits;
+      DROP INDEX IF EXISTS idx_credit_transactions_created_at;
+      DROP INDEX IF EXISTS idx_credit_transactions_user_id;
+
+      ALTER TABLE usage_tracking DROP COLUMN IF EXISTS credits_used;
+      DROP TABLE IF EXISTS credit_transactions CASCADE;
+
+      ALTER TABLE billing_info
+        DROP COLUMN IF EXISTS credits_reset_at,
+        DROP COLUMN IF EXISTS credits_total,
+        DROP COLUMN IF EXISTS credits_remaining;
+    `
     }
 ]
 
