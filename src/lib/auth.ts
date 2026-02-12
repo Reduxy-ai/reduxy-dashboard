@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
 import bcrypt from 'bcryptjs'
+import { NextRequest } from 'next/server'
 
 const JWT_SECRET = new TextEncoder().encode(
     process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
@@ -35,6 +36,23 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
         return payload as unknown as JWTPayload
     } catch (error) {
         console.error('JWT verification failed:', error)
+        return null
+    }
+}
+
+/**
+ * Verify session from NextRequest cookies
+ * Returns the JWT payload if valid, null otherwise
+ */
+export async function verifySession(request: NextRequest): Promise<JWTPayload | null> {
+    try {
+        const token = request.cookies.get('reduxy_auth_token')?.value
+        if (!token) {
+            return null
+        }
+        return await verifyJWT(token)
+    } catch (error) {
+        console.error('Session verification failed:', error)
         return null
     }
 }

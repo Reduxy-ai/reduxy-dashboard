@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  serverExternalPackages: ['pg'],
   webpack: (config: any) => {
     // Exclude node-specific modules from client bundle
     config.resolve.fallback = {
@@ -18,9 +19,6 @@ const nextConfig: NextConfig = {
       child_process: false,
     };
     return config;
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['pg'],
   },
 };
 
