@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,10 +19,19 @@ export default function LoginPage() {
     })
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [loading, setLoading] = useState(false)
+    const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
     const { login } = useAuth()
     const router = useRouter()
-    const searchParams = useSearchParams()
-    const redirectUrl = searchParams.get('redirect')
+
+    // Get redirect URL from query params on client side
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const redirect = params.get('redirect')
+        if (redirect) {
+            setRedirectUrl(redirect)
+            console.log('Redirect URL:', redirect) // Debug log
+        }
+    }, [])
 
     const handleInputChange = (field: keyof LoginFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }))
@@ -53,8 +62,10 @@ export default function LoginPage() {
             if (response.success) {
                 // Redirect to original URL if provided (for SSO from website)
                 if (redirectUrl) {
+                    console.log('Redirecting to:', redirectUrl)
                     window.location.href = redirectUrl
                 } else {
+                    console.log('No redirect URL, going to dashboard home')
                     router.push("/")
                 }
             } else {
