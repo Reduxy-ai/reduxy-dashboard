@@ -48,10 +48,23 @@ export async function POST(request: NextRequest) {
             plan: user.plan
         })
 
-        return NextResponse.json({
+        // Set cookie for SSO with website
+        const response = NextResponse.json({
             user,
             token
         })
+
+        // Set httpOnly cookie for secure SSO
+        response.cookies.set('reduxy_auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            domain: process.env.COOKIE_DOMAIN || undefined, // e.g., '.reduxy.ai' for cross-subdomain
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+            path: '/'
+        })
+
+        return response
     } catch (error) {
         console.error('Registration error:', error)
         

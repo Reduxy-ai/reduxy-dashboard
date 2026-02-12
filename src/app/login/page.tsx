@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,8 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const { login } = useAuth()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const redirectUrl = searchParams.get('redirect')
 
     const handleInputChange = (field: keyof LoginFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }))
@@ -49,7 +51,12 @@ export default function LoginPage() {
 
             const response = await login(result.data)
             if (response.success) {
-                router.push("/")
+                // Redirect to original URL if provided (for SSO from website)
+                if (redirectUrl) {
+                    window.location.href = redirectUrl
+                } else {
+                    router.push("/")
+                }
             } else {
                 setErrors({ general: response.error || 'Login failed' })
             }
