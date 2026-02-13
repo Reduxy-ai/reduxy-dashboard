@@ -20,16 +20,24 @@ export default function LoginPage() {
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [loading, setLoading] = useState(false)
     const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
+    const [callbackUrl, setCallbackUrl] = useState<string | null>(null)
     const { login } = useAuth()
     const router = useRouter()
 
-    // Get redirect URL from query params on client side
+    // Get redirect URL and callback URL from query params on client side
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
-        const redirect = params.get('redirect')
+        const redirect = params.get('redirect') || params.get('redirect_uri')
+        const callback = params.get('callback_url')
+        const state = params.get('state')
+
         if (redirect) {
             setRedirectUrl(redirect)
-            console.log('Redirect URL:', redirect) // Debug log
+            console.log('Redirect URL:', redirect)
+        }
+        if (callback) {
+            setCallbackUrl(callback)
+            console.log('Callback URL:', callback)
         }
     }, [])
 
@@ -60,8 +68,37 @@ export default function LoginPage() {
 
             const response = await login(result.data)
             if (response.success) {
-                // Generate authorization code for SSO if redirect URL is provided
-                if (redirectUrl) {
+                // If callback URL is provided (from auth service), redirect there with user_id
+                if (callbackUrl) {
+                    try {
+                        // Get current user from auth context (should be set after successful login)
+                        // We need to fetch the user ID from the session
+                        const profileResponse = await fetch('/api/auth/profile', {
+                            method: 'GET',
+                        })
+
+                        if (profileResponse.ok) {
+                            const { user } = await profileResponse.json()
+
+                            // Build callback URL with user_id and redirect_uri
+                            const callbackUrlObj = new URL(callbackUrl)
+                            callbackUrlObj.searchParams.set('user_id', user.id)
+                            if (redirectUrl) {
+                                callbackUrlObj.searchParams.set('redirect_uri', redirectUrl)
+                            }
+
+                            console.log('Redirecting to auth callback:', callbackUrlObj.toString())
+                            window.location.href = callbackUrlObj.toString()
+                        } else {
+                            throw new Error('Failed to get user profile')
+                        }
+                    } catch (error) {
+                        console.error('Auth callback redirect failed:', error)
+                        setErrors({ general: 'Login succeeded but auth redirect failed' })
+                    }
+                }
+                // Legacy SSO flow: Generate authorization code for direct redirect
+                else if (redirectUrl) {
                     try {
                         // Generate authorization code
                         const codeResponse = await fetch('/api/auth/generate-code', {
