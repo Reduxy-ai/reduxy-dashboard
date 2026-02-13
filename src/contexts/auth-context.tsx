@@ -85,21 +85,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     const logout = async () => {
-        try {
-            // Call auth service logout to clear shared cookie
-            await fetch(`${AUTH_URL}/api/auth/logout`, {
-                method: 'POST',
-                credentials: 'include',
-            })
-        } catch (error) {
-            console.error('Logout error:', error)
-        }
-
         dispatch({ type: 'LOGOUT' })
 
-        // Redirect to auth service login page
+        // Redirect to auth service logout page, which will clear cookie and redirect back
         const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.reduxy.ai'
-        window.location.href = `${AUTH_URL}/login?redirect_uri=${encodeURIComponent(dashboardUrl)}`
+        window.location.href = `${AUTH_URL}/logout?redirect_uri=${encodeURIComponent(dashboardUrl)}`
     }
 
     const refreshUser = async () => {
