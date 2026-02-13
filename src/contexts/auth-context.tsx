@@ -1,13 +1,14 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react'
-import { User, AuthState, LoginCredentials, RegisterData } from '@/types/auth'
+import { User, AuthState } from '@/types/auth'
+
+const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'https://auth.reduxy.ai'
 
 interface AuthContextType extends AuthState {
-    login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>
-    register: (data: RegisterData) => Promise<{ success: boolean; error?: string }>
     logout: () => void
     refreshUser: () => Promise<void>
+    redirectToLogin: () => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -60,119 +61,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const checkExistingSession = async () => {
         try {
-            const token = getStoredToken()
-            if (!token) {
-                dispatch({ type: 'LOGIN_FAILURE', payload: 'No token found' })
-                return
-            }
-
-            // Verify JWT token by calling the profile API
-            const response = await fetch('/api/auth/profile', {
+            // Check session with auth service
+            const response = await fetch(`${AUTH_URL}/api/auth/me`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                credentials: 'include', // Important: send cookies
             })
 
             if (response.ok) {
                 const data = await response.json()
                 dispatch({ type: 'LOGIN_SUCCESS', payload: data.user })
             } else {
-                // Token is invalid or expired
-                removeStoredToken()
-                dispatch({ type: 'LOGIN_FAILURE', payload: 'Invalid or expired token' })
+                dispatch({ type: 'LOGIN_FAILURE', payload: 'Not authenticated' })
             }
         } catch (error) {
             console.error('Session check failed:', error)
-            removeStoredToken()
             dispatch({ type: 'LOGIN_FAILURE', payload: 'Session check failed' })
         }
     }
 
-    const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
-        dispatch({ type: 'LOGIN_START' })
-
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(credentials),
-            })
-
-            const data = await response.json()
-
-            if (!response.ok) {
-                dispatch({ type: 'LOGIN_FAILURE', payload: data.error })
-                return { success: false, error: data.error }
-            }
-
-            // Store token
-            storeToken(data.token)
-
-            dispatch({ type: 'LOGIN_SUCCESS', payload: data.user })
-            return { success: true }
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Login failed'
-            dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage })
-            return { success: false, error: errorMessage }
-        }
+    const redirectToLogin = () => {
+        const currentUrl = window.location.href
+        window.location.href = `${AUTH_URL}/login?redirect_uri=${encodeURIComponent(currentUrl)}`
     }
 
-    const register = async (data: RegisterData): Promise<{ success: boolean; error?: string }> => {
-        dispatch({ type: 'LOGIN_START' })
-
+    const logout = async () => {
         try {
-            const response = await fetch('/api/auth/register', {
+            // Call auth service logout to clear shared cookie
+            await fetch(`${AUTH_URL}/api/auth/logout`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
+                credentials: 'include',
             })
-
-            const responseData = await response.json()
-
-            if (!response.ok) {
-                dispatch({ type: 'LOGIN_FAILURE', payload: responseData.error })
-                return { success: false, error: responseData.error }
-            }
-
-            // Store token
-            storeToken(responseData.token)
-
-            dispatch({ type: 'LOGIN_SUCCESS', payload: responseData.user })
-            return { success: true }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Registration failed'
-            dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage })
-            return { success: false, error: errorMessage }
+            console.error('Logout error:', error)
         }
-    }
 
-    const logout = () => {
-        removeStoredToken()
         dispatch({ type: 'LOGOUT' })
 
-        // Redirect to logout page to handle SSO logout with website
-        const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://www.reduxy.ai'
-        window.location.href = `/logout?redirect=${encodeURIComponent(websiteUrl)}`
+        // Redirect to auth service login page
+        const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.reduxy.ai'
+        window.location.href = `${AUTH_URL}/login?redirect_uri=${encodeURIComponent(dashboardUrl)}`
     }
 
     const refreshUser = async () => {
         try {
-            const token = getStoredToken()
-            if (!token) return
-
-            // Fetch fresh user data from the API
-            const response = await fetch('/api/auth/profile', {
+            // Fetch fresh user data from auth service
+            const response = await fetch(`${AUTH_URL}/api/auth/me`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                credentials: 'include',
             })
 
             if (response.ok) {
@@ -189,10 +124,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const value: AuthContextType = {
         ...state,
-        login,
-        register,
         logout,
-        refreshUser
+        refreshUser,
+        redirectToLogin
     }
 
     return (
@@ -208,26 +142,4 @@ export function useAuth() {
         throw new Error('useAuth must be used within an AuthProvider')
     }
     return context
-}
-
-// Token storage utilities
-const TOKEN_KEY = 'reduxy_auth_token'
-
-function storeToken(token: string) {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(TOKEN_KEY, token)
-    }
-}
-
-function getStoredToken(): string | null {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem(TOKEN_KEY)
-    }
-    return null
-}
-
-function removeStoredToken() {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem(TOKEN_KEY)
-    }
 } 
