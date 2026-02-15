@@ -1,42 +1,25 @@
 "use client"
 
 import { useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
+
+const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'https://auth.reduxy.ai'
 
 export default function LogoutPage() {
     const searchParams = useSearchParams()
-    const router = useRouter()
 
     useEffect(() => {
+        // Get redirect parameter (if coming from website)
         const redirect = searchParams.get('redirect')
 
-        // Call logout API to clear cookie
-        fetch('/api/auth/logout-page', {
-            method: 'POST',
-        }).then(() => {
-            console.log('Dashboard session cleared')
+        // Default redirect is dashboard
+        const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.reduxy.ai'
+        const finalRedirect = redirect || dashboardUrl
 
-            if (redirect) {
-                // Redirect back to website with logout flag
-                const redirectUrl = new URL(redirect)
-                redirectUrl.searchParams.set('logout', 'true')
-                window.location.href = redirectUrl.toString()
-            } else {
-                // Stay on dashboard, go to login
-                router.push('/login')
-            }
-        }).catch(error => {
-            console.error('Logout failed:', error)
-            // Redirect anyway
-            if (redirect) {
-                const redirectUrl = new URL(redirect)
-                redirectUrl.searchParams.set('logout', 'true')
-                window.location.href = redirectUrl.toString()
-            } else {
-                router.push('/login')
-            }
-        })
-    }, [searchParams, router])
+        // Redirect to centralized auth service logout
+        // This will clear the shared SSO cookie and redirect back
+        window.location.href = `${AUTH_URL}/logout?redirect_uri=${encodeURIComponent(finalRedirect)}`
+    }, [searchParams])
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800">
